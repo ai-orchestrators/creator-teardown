@@ -1,0 +1,16 @@
+{
+  "platforms": ["instagram", "tiktok", "youtube", "linkedin"],
+  "runs_dir": "teardowns",
+  "apify_max_cost_usd": 5,
+  "jev_max_usd": 1,
+  "transcriber": {
+    "binary": "whisper-cli",
+    "model": "/absolute/path/to/ggml-medium.en.bin",
+    "language": "en",
+    "extra_args": [],
+    "command": null
+  },
+  "currency": {"code": "USD", "symbol": "US$", "usd_rate": 1},
+  "spelling": "as-is",
+  "timezone": null
+}

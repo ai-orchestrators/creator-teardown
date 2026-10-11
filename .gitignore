@@ -1,0 +1,23 @@
+.DS_Store
+*.swp
+*.swo
+node_modules/
+
+# Everything the setup wizard generates is yours, and stays local.
+config/*
+!config/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+
+# Run output: teardowns, work files and downloaded media never get committed.
+teardowns/
+.work/
+media/
+visuals/
+*.mp4
+*.mov
+*.m4a
+*.wav
+*.webm
