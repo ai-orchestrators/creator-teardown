@@ -83,6 +83,21 @@ class Settings(ConfigCase):
             with self.assertRaises(common.ConfigError):
                 common.load_settings()
 
+    def test_brand_profiles_and_client_folder(self):
+        self.assertEqual(common.brand_profiles(), {})
+        self.write("profile.md", "# Default brand")
+        (self.config / "profiles").mkdir()
+        (self.config / "profiles" / "side-project.md").write_text("# Second brand")
+        self.assertEqual(sorted(common.brand_profiles()), ["default", "side-project"])
+        self.assertIsNone(common.load_settings()["client_files_dir"])
+        self.write("settings.json", {"client_files_dir": str(self.config / "no-such-folder")})
+        notes = check_setup.run()["notes"]
+        self.assertTrue(any("client_files_dir" in note for note in notes))
+        self.assertEqual(check_setup.run()["brand_profiles"], ["default", "side-project"])
+        self.write("settings.json", {"client_files_dir": 7})
+        with self.assertRaises(common.ConfigError):
+            common.load_settings()
+
     def test_env_file_fills_but_never_overrides(self):
         self.write(".env", "# comment\nexport APIFY_TOKEN='apify-test-value'\nTYPESAFE_API_KEY=\"from-file\"\nBROKEN LINE\n")
         os.environ["TYPESAFE_API_KEY"] = "from-shell"

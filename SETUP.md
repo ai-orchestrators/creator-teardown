@@ -13,7 +13,8 @@ Builds the files in `config/` that `SKILL.md` reads on every run:
 | File | Holds |
 |---|---|
 | `config/settings.json` | Platforms, transcriber, currency, spelling, run folder, cost caps |
-| `config/profile.md` | Who the five rebuilds are written for |
+| `config/profile.md` | Your default brand: who the five rebuilds are written for |
+| `config/profiles/<slug>.md` | One per extra brand of yours. Optional |
 | `config/brand.json` | Who prepared the report: name, website, logo. Optional |
 | `config/.env` | API keys. **Written by the user, never by you** |
 
@@ -137,6 +138,21 @@ Each run ends with five ready drafts in the user's own voice. Collect:
 Read the voice file and stories file once to confirm the paths work. Do not copy their
 contents into `config/`: store the paths.
 
+**More than one brand?** Ask once. The first brand goes to `config/profile.md` (it becomes
+`default`). Each other brand gets the same questions and its own file,
+`config/profiles/<slug>.md`, with a short lowercase slug. Every run asks which brand it is for.
+
+## Step 5b - Client files (optional)
+
+Teardowns can also be run for a client: the skill builds their brand profile first, then writes
+the rebuilds for them. It reads only that client's own material.
+
+> "Do you keep a folder per client? If so, where is the folder that holds them?"
+
+Store the parent folder as `client_files_dir` (for example `~/Clients`, holding one folder per
+client). `none` is fine: client runs then work from the client's own posts and any notes the user
+points at on the day. Never point it at a folder that mixes several clients' files loose together.
+
 ## Step 6 - The report
 
 - **"Prepared by" name** - shown in the byline, footer and phone menu. `none` is fine:
@@ -161,12 +177,14 @@ Offer, do not assume:
 | `runs_dir` | `teardowns` | Run folders go here, relative to the folder Claude is working in |
 | `apify_max_cost_usd` | `5` | Hard spend cap on every Apify pull |
 | `jev_max_usd` | `1` | Hard cap on one labelling run |
+| `client_files_dir` | `null` | Set in Step 5b |
 
 ## Generation
 
 1. Read `templates/settings.example.json`, fill it from the answers, and write
    `config/settings.json`.
-2. Read `templates/profile.tmpl.md`, replace every placeholder, and write `config/profile.md`.
+2. Read `templates/profile.tmpl.md`, replace every placeholder, and write `config/profile.md`
+   (and `config/profiles/<slug>.md` for each extra brand).
 3. If any report field was given, read `templates/brand.example.json`, fill it, and write
    `config/brand.json`. Leave out fields the user skipped.
 4. Run `python3 scripts/check_setup.py` again and show the result. Mark anything still

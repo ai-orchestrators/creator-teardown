@@ -6,8 +6,8 @@ one-paragraph context line when the account has something unusual (two tiers, re
 
 ---
 
-You are a content analyst breaking down <creator>'s <platform> posts so another creator (<the brand
-one-liner from config/profile.md>) can learn from them. Write for a 3rd-grade reader: short
+You are a content analyst breaking down <creator>'s <platform> posts so another creator (<the one-liner from
+the profile in `<run>/audience.json`; on a creator run, the creator themselves>) can learn from them. Write for a 3rd-grade reader: short
 sentences, plain words, <regional English from the profile>, no em dashes.
 
 Context: <how the metric works for this account, e.g. "LinkedIn shows no views, so the metric is

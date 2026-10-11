@@ -15,6 +15,16 @@ This skill answers with numbers instead of vibes:
 - **Checks every pattern outside the winning shape**, so a trait riding on the real cause gets folded into it
 - **Never invents a fact about you**: every claim in a rebuild is proved by a file you named
 
+## Who a run is for
+
+Every run starts with one question: who is this for?
+
+| Answer | What you get |
+|---|---|
+| **You (your own brand)** | The full report, plus five rebuilds for whichever of your brand profiles you pick |
+| **A client** | The skill builds the client's brand profile first, from their own files, posts and your notes, then writes the five rebuilds for them. One client per run, and every draft comes to you before anything reaches them |
+| **The creator** | A report written to the creator about their own account: "Your best posts", "Keep doing this", "Do less of this". No rebuilds |
+
 ## What you get
 
 One self-contained HTML report with seven tabs, in dark and light themes, that works on a phone:
@@ -25,7 +35,7 @@ One self-contained HTML report with seven tabs, in dark and light themes, that w
 | What wins | Findings with their hit rates and miss rates, and a filter for every kind of post |
 | How they build a post | Post shapes, a timed script anatomy, ways to open, script templates |
 | Their best posts | The real images or frames, the hook, argument and ending, why it worked, what to borrow |
-| Your versions | Five ready drafts for your brand, each with its hook options, structure map and checks |
+| Your versions | Five ready drafts for your brand or your client's, each with its hook options, structure map and checks (not on creator runs) |
 | Review panel | A hostile number check, a craft check, a truth check and a copy-distance check |
 | Raw data | Every lift table, the pace data, and every post with its labels |
 
@@ -53,7 +63,7 @@ On first use it runs a setup wizard (`SETUP.md`) that:
 2. Asks which platforms you will tear down
 3. Points you at the keys you need. **You add them yourself** to your shell or `config/.env`. The skill never asks for a key in the chat
 4. Finds your whisper model
-5. Asks who the rebuilds are for: brand, audience and their pains in their words, voice file, CTA, and an optional file of true stories
+5. Asks who the rebuilds are for: brand (one or several), audience and their pains in their words, voice file, CTA, and an optional file of true stories. Optionally, where your client folders live
 6. Asks who prepared the report (name, website, optional logo), your currency and your spelling
 
 It writes the answers to `config/`. `config/` is gitignored. Your answers and keys never get committed, and never leave your machine.

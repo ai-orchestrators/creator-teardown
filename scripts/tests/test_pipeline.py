@@ -757,6 +757,25 @@ class ReportV3(unittest.TestCase):
             if brand['name']:
                 self.assertIn(f'by <a href="{brand["url"]}">{brand["name"]}</a>', pinned)
 
+    def test_audience_modes(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.page(d)
+            work = Path(d)
+            rebuild = {'rebuilds': [{'source_post_id': 'p0', 'title': 'A version', 'draft': 'Draft line'}]}
+            mine = report.render(work, dict(rebuild, audience={'mode': 'me', 'brand': 'brand-a'}), 'Creator teardown')
+            self.assertIn('id="tab-yours"', mine)
+            self.assertIn('Copy this', mine)
+            client = report.render(work, dict(rebuild, audience={'mode': 'client', 'name': 'Client Co'}), 'Creator teardown')
+            self.assertIn('id="tab-yours"', client)
+            self.assertIn(' for Client Co', client.split('</header>', 1)[0])
+            creator = report.render(work, {'audience': {'mode': 'creator', 'name': 'The Creator'}}, 'Creator teardown')
+            self.assertNotIn('id="tab-yours"', creator)
+            self.assertNotIn('id="yours"', creator)
+            self.assertIn('Your best posts', creator)
+            self.assertIn('Keep doing this', creator)
+            self.assertIn(' for The Creator', creator.split('</header>', 1)[0])
+            self.assertEqual(report.audience_of({'audience': {'mode': 'odd'}})['mode'], 'me')
+
     def test_clock_and_day_text(self):
         self.assertEqual(report.clock(147.002676), '2:27')
         self.assertEqual(report.clock(38.4), '38s')

@@ -23,10 +23,11 @@ Check, in order:
 2. Every claim is backed by patterns.json or outliers data, with repeat and confound caveats; hunches
    are labelled.
 3. Every quote exists in that post's caption or transcript; every post id exists in posts.json.
-4. Copy rules (hard fails): the regional English in `config/profile.md`, zero em or en dashes, none of
+4. Copy rules (hard fails): the regional English in the run's profile (`<run>/audience.json`, else
+   `config/profile.md`), zero em or en dashes, none of
    the profile's banned words, 3rd-grade plain words in explanation text (quotes exempt), costs in the
    currency set in `config/settings.json`. Typos, doubled words, broken sentences, unexplained jargon.
-5. The five rebuilds: typos, rule breaks, a fact with no source in `facts`, a hook that does not match
+5. The five rebuilds (none on a creator run, where the Your versions tab is gone): typos, rule breaks, a fact with no source in `facts`, a hook that does not match
    `chosen_hook`, any 6+ word run copied from the creator, two drafts telling the same story.
 6. Gaps: empty sections, "undefined", "None", "null" or "NaN" in visible text, empty image sources,
    duplicated paragraphs, sections that contradict each other.

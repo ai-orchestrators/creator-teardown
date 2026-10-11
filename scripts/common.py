@@ -7,7 +7,8 @@ CREATOR_TEARDOWN_CONFIG environment variable to keep them somewhere else.
 config/ holds:
     settings.json   platforms, transcriber, currency, run folder, cost caps
     brand.json      who prepared the report (name, url, logo), all optional
-    profile.md      who the rebuilds are written for
+    profile.md      your default brand: who the rebuilds are written for
+    profiles/       one <slug>.md per extra brand of yours (optional)
     .env            API keys, written by you, never by the skill
 """
 from __future__ import annotations
@@ -36,6 +37,7 @@ DEFAULT_SETTINGS = {
     "currency": {"code": "USD", "symbol": "US$", "usd_rate": 1.0},
     "timezone": None,
     "spelling": "as-is",
+    "client_files_dir": None,
 }
 
 CURRENCY_SYMBOLS = {"USD": "US$", "AUD": "A$", "NZD": "NZ$", "CAD": "C$", "GBP": "£", "EUR": "€",
@@ -118,10 +120,22 @@ def load_settings() -> dict:
     rate = settings["currency"].get("usd_rate")
     if not isinstance(rate, (int, float)) or isinstance(rate, bool) or rate <= 0:
         raise ConfigError("settings.json currency.usd_rate must be a number above 0 (1 US dollar in your currency).")
+    if settings.get("client_files_dir") is not None and not isinstance(settings["client_files_dir"], str):
+        raise ConfigError("settings.json client_files_dir must be a folder path, or null.")
     for key in ("apify_max_cost_usd", "jev_max_usd"):
         if not isinstance(settings.get(key), (int, float)) or settings[key] <= 0:
             raise ConfigError(f"settings.json {key} must be a number above 0.")
     return settings
+
+
+def brand_profiles() -> dict[str, Path]:
+    """Your brands: config/profile.md as "default", plus config/profiles/<slug>.md for any others."""
+    found = {}
+    if (config_dir() / "profile.md").is_file():
+        found["default"] = config_dir() / "profile.md"
+    for path in sorted((config_dir() / "profiles").glob("*.md")):
+        found[path.stem] = path
+    return found
 
 
 def resolve_config_path(value) -> Path | None:

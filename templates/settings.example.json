@@ -12,5 +12,6 @@
   },
   "currency": {"code": "USD", "symbol": "US$", "usd_rate": 1},
   "spelling": "as-is",
-  "timezone": null
+  "timezone": null,
+  "client_files_dir": null
 }

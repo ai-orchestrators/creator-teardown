@@ -9,6 +9,8 @@ the shape only.
 
 ```json
 {
+  "audience": {"mode": "me | client | creator", "name": "who the report is for (client and creator runs)",
+               "brand": "the profile slug (me runs)", "profile": "path to the profile the rebuilds used"},
   "creator": "@example_creator",
   "platform": "instagram",
   "window": "1 Sep to 10 Oct 2026",
@@ -92,3 +94,7 @@ Notes:
 - `findings[].numbers` draws the "this kind of post vs all posts" bar. `base` is the all-posts rate (0-1).
 - `confidence`: `strong` = n of 15 or more and a clear gap; `medium` = n 5-14; `hunch` = n under 5.
 - `agreement` is copied from `.work/agreement.json`.
+- `audience` is copied from `<run>/audience.json`. `creator` mode drops the Your versions tab, renames
+  "Their best posts" to "Your best posts", shows `copy_this` / `skip_this` as "Keep doing this" and
+  "Do less of this", and adds "for <name>" to the byline. `client` mode adds "for <name>" too.
+- `prepared` pins the "Prepared" date (YYYY-MM-DD). Without it the report uses today.

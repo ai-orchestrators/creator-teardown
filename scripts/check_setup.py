@@ -16,7 +16,7 @@ import json
 import shutil
 from pathlib import Path
 
-from common import ConfigError, KEY_NAMES, config_dir, key_present, load_settings
+from common import ConfigError, KEY_NAMES, brand_profiles, config_dir, key_present, load_settings
 
 VIDEO_PLATFORMS = {"instagram", "tiktok", "youtube", "linkedin"}
 APIFY_PLATFORMS = {"instagram", "tiktok", "linkedin"}
@@ -52,6 +52,10 @@ def run() -> dict:
     for name in ("settings.json", "profile.md"):
         if not report["config"][name]:
             report["problems"].append(f"config/{name} is missing. Run SETUP.md.")
+    report["brand_profiles"] = sorted(brand_profiles())
+    client_dir = settings.get("client_files_dir")
+    if client_dir and not Path(client_dir).expanduser().is_dir():
+        report["notes"].append(f"client_files_dir {client_dir} does not exist. Client runs will use their posts and notes only.")
     if not report["keys"]["TYPESAFE_API_KEY"]:
         report["problems"].append("TYPESAFE_API_KEY is missing. Jev labels every post, so a run cannot finish without it.")
     if not report["keys"]["OPENROUTER_API_KEY"]:
@@ -85,6 +89,8 @@ def main() -> int:
         print(f"  {name:<14} {'ok' if present else 'missing'}")
     for name, present in (report.get("keys") or {}).items():
         print(f"  {name:<19} {'set' if present else 'missing'}")
+    if report.get("brand_profiles"):
+        print(f"  brand profiles {', '.join(report['brand_profiles'])}")
     for name, status in (report.get("tools") or {}).items():
         print(f"  {name:<14} {status['path'] if status['found'] else 'missing'}")
     if "whisper_model" in report:

@@ -190,6 +190,20 @@ def listed(items):
     return '<ul class="list">' + ''.join(f'<li>{item_html(item)}</li>' for item in (items or [])) + '</ul>'
 
 
+def audience_of(playbook) -> dict:
+    """Who the run is for: 'me' (the user's own brand), 'client' (a client's brand) or 'creator' (the person analysed)."""
+    audience = dict((playbook or {}).get('audience') or {})
+    audience['mode'] = audience.get('mode') if audience.get('mode') in ('me', 'client', 'creator') else 'me'
+    return audience
+
+
+def tabs_for(audience) -> list:
+    if audience['mode'] != 'creator':
+        return list(TABS)
+    names = {'build': 'How you build a post', 'best': 'Your best posts'}
+    return [(tab_id, names.get(tab_id, label)) for tab_id, label in TABS if tab_id != 'yours']
+
+
 TABS = (('start', 'Start here'), ('wins', 'What wins'), ('build', 'How they build a post'),
         ('best', 'Their best posts'), ('yours', 'Your versions'), ('sure', 'Review panel'),
         ('data', 'Raw data'))
@@ -432,9 +446,10 @@ def guided_panels(playbook, posts, features, outliers, agreement, patterns=None,
         if isinstance(items, (str, dict)):
             items = [items]
         start.append(f'<div class="panel"><h3>{label}</h3><ul class="list">{"".join(picture_item(item, by_id, features) for item in items)}</ul></div>')
-    start.append('</div><div class="two copy-skip"><div><h3>Copy this</h3><ul class="list">' +
+    keep, drop = ('Keep doing this', 'Do less of this') if audience_of(playbook)['mode'] == 'creator' else ('Copy this', 'Skip this')
+    start.append(f'</div><div class="two copy-skip"><div><h3>{keep}</h3><ul class="list">' +
                  ''.join(f'<li>✓ {item_html(item)}</li>' for item in (playbook.get('copy_this') or [])) +
-                 '</ul></div><div><h3>Skip this</h3><ul class="list">' +
+                 f'</ul></div><div><h3>{drop}</h3><ul class="list">' +
                  ''.join(f'<li>✗ {item_html(item)}</li>' for item in (playbook.get('skip_this') or [])) + '</ul></div></div>')
     sure = playbook.get('how_sure') or {}
     start.append(f'<p class="reading"><a href="#sure">Review panel</a> {esc(sure.get("summary"))}</p>')
@@ -632,6 +647,10 @@ def render(work: Path, playbook: dict | None, title: str, prepared=None) -> str:
     who = f'<a href="{esc(profile)}">{esc(handle)}</a>' if profile else esc(handle)
     when = f'Prepared {esc(prepared_date(prepared or (playbook or {}).get("prepared")))}'
     by = (f' by <a href="{esc(brand["url"])}">{esc(brand["name"])}</a>' if brand['url'] else f' by {esc(brand["name"])}') if brand['name'] else ''
+    audience = audience_of(playbook)
+    tabs = tabs_for(audience)
+    if audience['mode'] in ('client', 'creator') and audience.get('name'):
+        when += f' for {esc(audience["name"])}'
     parts = ['<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">',
              f'<title>{esc(title)}</title>', FONT, CSS, '<div class="wrap">',
              f'<header><p class="eyebrow">Creator teardown</p><h1>{esc(title)}</h1><p class="byline">{who}<span class="sep">|</span>{when}{by}</p><div class="grid stats">']
@@ -718,7 +737,7 @@ def render(work: Path, playbook: dict | None, title: str, prepared=None) -> str:
                  '<div class="menu-backdrop" hidden></div>'
                  '<nav class="tabs" id="report-menu" role="tablist" aria-label="Report sections">'
                  '<div class="menu-head"><span>Sections</span><button type="button" class="menu-close" aria-label="Close menu">&times;</button></div>')
-    for i, (tab_id, label) in enumerate(TABS):
+    for i, (tab_id, label) in enumerate(tabs):
         parts.append(f'<button type="button" role="tab" id="tab-{tab_id}" aria-controls="{tab_id}" '
                      f'aria-selected="{"true" if i == 0 else "false"}">{label}</button>')
     if brand['name']:
@@ -726,7 +745,11 @@ def render(work: Path, playbook: dict | None, title: str, prepared=None) -> str:
         parts.append(f'<a class="menu-foot" href="{esc(brand["url"])}">{foot_logo}{esc(brand["name"])}</a>' if brand['url']
                      else f'<span class="menu-foot">{foot_logo}{esc(brand["name"])}</span>')
     parts.append('</nav>')
-    for (tab_id, label), content in zip(TABS, guided_panels(playbook, posts, features, outliers, agreement, patterns, labels, visuals, analyses, media)):
+    shown = dict(tabs)
+    for (tab_id, _), content in zip(TABS, guided_panels(playbook, posts, features, outliers, agreement, patterns, labels, visuals, analyses, media)):
+        if tab_id not in shown:
+            continue
+        label = shown[tab_id]
         parts.append(f'<section class="tab-panel" id="{tab_id}" role="tabpanel" aria-labelledby="tab-{tab_id}"><h2>{label}</h2>{content}</section>')
     parts.append('<section class="tab-panel" id="data" role="tabpanel" aria-labelledby="tab-data"><h2>Raw data</h2><section><h3>Post performance over time</h3>')
     parts.append(chart(posts, outliers.get('posts', {}), outliers.get('hi', 1.5)))
