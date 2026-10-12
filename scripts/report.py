@@ -78,6 +78,9 @@ def local_iso(value) -> str:
     return moment.strftime('%Y-%m-%d') if moment else ''
 
 
+BAND_WORDS = {'outlier': 'took off', 'normal': 'normal', 'dud': 'flopped', 'climbing': 'still climbing'}
+
+
 def clock(seconds):
     if not isinstance(seconds, (int, float)) or seconds <= 0:
         return None
@@ -210,10 +213,45 @@ TABS = (('start', 'Start here'), ('wins', 'What wins'), ('build', 'How they buil
         ('data', 'Raw data'))
 
 
+def joins(a: str, b: str) -> str | None:
+    """'We do about 1.' + '2 million.' or 'in L.' + 'A.' were cut by the splitter: give the joiner, else None."""
+    a, b = a.strip(), b.strip()
+    if re.search(r'\d\.$', a) and re.match(r'\d', b):
+        return ''
+    if re.search(r'\b[A-Z]\.$', a) and re.match(r'[A-Z]\.', b):
+        return ' '
+    return None
+
+
+def tidy_spoken(text: str) -> str:
+    """Whisper writes '1.3' as '1. 3' mid-sentence: put the decimal back for display."""
+    return re.sub(r'(?<=\d)\. (?=\d)', '.', text)
+
+
+def merged_texts(sentences) -> list:
+    out = []
+    for s in sentences:
+        text = str(s.get('text') if isinstance(s, dict) else s or '')
+        glue = joins(out[-1], text) if out else None
+        if glue is not None:
+            out[-1] = out[-1].rstrip() + glue + text.strip()
+        else:
+            out.append(text)
+    return out
+
+
 def opening(post_id, posts, features, cap=22):
     post = posts.get(str(post_id), {})
     feat = features.get(str(post_id), {})
     text = str(feat.get('segments', {}).get('hook_text') or (post.get('caption') or '').split('\n')[0]).strip()
+    if feat.get('sentences') and re.search(r'(\d|\b[A-Z])\.$', text):
+        whole, joined = merged_texts(feat['sentences']), ''
+        for part in whole:  # take whole sentences until the hook is covered
+            joined = (joined + ' ' + part.strip()).strip()
+            if len(joined) >= len(text):
+                break
+        text = joined or text
+    text = tidy_spoken(text)
     if len(text.split()) > cap:
         words = re.split(r'(?<=[.!?])\s+', text, maxsplit=1)[0].split()
         text = ' '.join(words[:cap]) + ('\u2026' if len(words) > cap else '')
@@ -291,7 +329,8 @@ def picture_item(item, posts, features):
     if isinstance(stat, dict) and isinstance(stat.get('hits'), (int, float)) and isinstance(stat.get('n'), (int, float)) and stat['n'] > 0:
         bits.append(f'<div class="mini-bar" aria-label="{esc(stat["hits"])} of {esc(stat["n"])}"><i style="width:{min(100, max(0, 100 * stat["hits"] / stat["n"])):.1f}%"></i></div><small>{esc(stat["hits"])} of {esc(stat["n"])}</small>')
     if item.get('quote_post_id'):
-        quote = opening(item['quote_post_id'], posts, features)
+        quote = (posts.get(str(item['quote_post_id']), {}).get('caption') or '').split('\n')[0].strip() \
+            if item.get('quote_field') == 'title' else opening(item['quote_post_id'], posts, features)
         if quote:
             bits.append(f'<span class="quote-chip">“{esc(quote)}”</span>')
     bits.append('</li>')
@@ -353,14 +392,25 @@ def anatomy(post_id, features, labels):
     weights = [max(.1, s['end_s'] - s['start_s']) if timed else 1 for s in sentences]
     total = sum(weights)
     bars, beats, legend = [], [], []
+    skip = set()
     for i, sentence in enumerate(sentences):
+        if i in skip:
+            continue
+        text, weight = sentence.get('text') or '', weights[i]
+        j = i
+        while j + 1 < len(sentences) and joins(text, sentences[j + 1].get('text') or '') is not None:
+            text = text.rstrip() + joins(text, sentences[j + 1].get('text') or '') + (sentences[j + 1].get('text') or '').strip()
+            weight += weights[j + 1]
+            j += 1
+            skip.add(j)
+        sentence = dict(sentence, text=tidy_spoken(text))
         role = roles[i].get('role', {}).get('value', 'other') if i < len(roles) else sentence.get('position', 'other')
         role = role if role in ('hook', 'claim', 'setup', 'evidence', 'proof', 'payoff', 'benefit', 'cta', 'ending',
                                 'instruction', 'reframe', 'objection', 'story_beat') else 'other'
         role_label = role.replace('_', ' ')
         if role not in legend:
             legend.append(role)
-        bars.append(f'<i class="role-{role}" style="width:{weights[i]/total*100:.2f}%" title="{esc(role)}: {esc(sentence.get("text"))}"></i>')
+        bars.append(f'<i class="role-{role}" style="width:{weight/total*100:.2f}%" title="{esc(role)}: {esc(sentence.get("text"))}"></i>')
         at = sentence.get('start_s', 0)
         marker = f'{int(at)//60}:{int(at)%60:02d}' if timed else f'Line {i+1}'
         beats.append(f'<li><time>{esc(marker)}</time> <span class="chip">{esc(role_label)}</span> {esc(sentence.get("text"))}</li>')
@@ -374,6 +424,33 @@ def anatomy(post_id, features, labels):
 LENGTH_NAMES = {'under_15s': 'Under 15 seconds', '15_to_30s': '15 to 30 seconds', '30_to_60s': '30 to 60 seconds',
                 '60_to_90s': '60 to 90 seconds', 'over_90s': 'Over 90 seconds', 'short': 'Short caption (no video)',
                 'medium': 'Medium caption (no video)', 'long': 'Long caption (no video)'}
+
+
+LENGTH_ORDER = ('Under 30 seconds', '30 to 60 seconds', '60 to 90 seconds', '90 seconds to 3 minutes', 'Over 3 minutes')
+
+
+def length_key(post, features):
+    """A video's real length band (the post's own duration, not the window we transcribed); captions keep their bucket."""
+    seconds = post.get('duration_s') or (features.get(str(post['post_id']), {}).get('tempo') or {}).get('duration_s')
+    if (post.get('format') or '') in ('video', 'reel', 'short') and isinstance(seconds, (int, float)) and seconds > 0:
+        for limit, name in ((30, LENGTH_ORDER[0]), (60, LENGTH_ORDER[1]), (90, LENGTH_ORDER[2]), (180.5, LENGTH_ORDER[3])):
+            if seconds < limit:
+                return name
+        return LENGTH_ORDER[4]
+    bucket = features.get(str(post['post_id']), {}).get('length_bucket')
+    return LENGTH_NAMES.get(bucket, bucket)
+
+
+def length_rows(posts, features, outliers) -> list:
+    bands = outliers.get('posts') or {}
+    groups = {}
+    for post in posts:
+        band = (bands.get(str(post['post_id'])) or {}).get('band')
+        if band in ('outlier', 'normal', 'dud'):
+            groups.setdefault(length_key(post, features), []).append(band)
+    order = {name: i for i, name in enumerate(LENGTH_ORDER)}
+    return [{'value': name, 'n': len(group), 'outliers': group.count('outlier'), 'outlier_rate': group.count('outlier') / len(group)}
+            for name, group in sorted(groups.items(), key=lambda pair: order.get(pair[0], 99)) if name]
 
 
 def nice_value(key, value) -> str:
@@ -399,6 +476,8 @@ def kinds_panel(posts, features, labels, patterns, outliers, visuals, featured_i
     for i, (key, label) in enumerate(keys):
         bits.append(f'<div class="kind-list" data-kind-list="{key}"{"" if i == 0 else " hidden"}>')
         rows = lifts.get(key) or patterns.get('lifts', {}).get(key, [])
+        if key == 'length_bucket' and not grad:
+            rows = length_rows(posts, features, outliers)
         for row in rows:
             value = row.get('value')
             ids = []
@@ -406,6 +485,8 @@ def kinds_panel(posts, features, labels, patterns, outliers, visuals, featured_i
                 pid = str(post['post_id'])
                 if key == 'format':
                     candidate = post.get('format')
+                elif key == 'length_bucket' and not grad:
+                    candidate = length_key(post, features)
                 elif key == 'length_bucket':
                     candidate = features.get(pid, {}).get(key)
                 else:
@@ -463,15 +544,15 @@ def guided_panels(playbook, posts, features, outliers, agreement, patterns=None,
                     f'<ol class="flow">{"".join(f"<li>{esc(step)}</li>" for step in (system.get("steps") or []))}</ol></article>')
     for finding in playbook.get('findings') or []:
         post = by_id.get(str(finding.get('example_post_id')))
-        confidence = finding.get('confidence') if finding.get('confidence') in ('strong', 'medium', 'hunch') else 'hunch'
+        confidence = finding.get('confidence') if finding.get('confidence') in ('strong', 'medium', 'hunch') else None
         wins.append(f'<article class="finding"><h3>{esc(finding.get("title"))}</h3>'
                     f'<p class="reading">{esc(finding.get("plain"))}</p>'
                     f'<p class="number-line">{esc(finding.get("number_line"))}</p>'
                     f'{rate_bars(finding.get("numbers") or {}, *(("came back", "All test ideas") if patterns.get("graduation") else ()))}'
-                    f'<span class="chip confidence {confidence}">{confidence}</span>')
+                    + (f'<span class="chip confidence {confidence}">{confidence}</span>' if confidence else ''))
         if post:
             wins.append(f'<p class="reading">{esc(opening(post["post_id"], by_id, features))} {post_link(post)}</p>')
-        wins.append(f'<p class="reading"><b>Try this:</b> {esc(finding.get("your_move"))}</p></article>')
+        wins.append((f'<p class="reading"><b>Try this:</b> {esc(finding.get("your_move"))}</p>' if finding.get('your_move') else '') + '</article>')
     wins.append(kinds_panel(posts, features, labels, patterns, outliers, visuals, featured_ids, media))
     parts.append(''.join(wins))
 
@@ -534,7 +615,9 @@ def guided_panels(playbook, posts, features, outliers, agreement, patterns=None,
             chips = [(key, f"{(post.get('metrics') or {}).get(key):,}") for key in ('views', 'likes', 'comments', 'shares')
                      if (post.get('metrics') or {}).get(key) is not None]
             chips += [('Performance', f'{multiple:.1f} times their normal' if isinstance(multiple, (int, float)) else None),
-                      ('Band', row.get('band')), ('Tier', row.get('tier')), ('Format', post.get('format')),
+                      ('Result', BAND_WORDS.get(row.get('band'), row.get('band'))),
+                      ('Group', (tier_info(outliers, post.get('platform')).get('names') or {}).get(row.get('tier'))),
+                      ('Format', post.get('format')),
                       ('Length', clock(post.get('duration_s') or features.get(post_id, {}).get('tempo', {}).get('duration_s'))),
                       ('Date', day_text(post.get('posted_at')))]
             best.append('<div class="stat-chips">' + ''.join(f'<span class="chip">{esc(name)}: {esc(value)}</span>' for name, value in chips if value is not None) + '</div>')
@@ -547,7 +630,8 @@ def guided_panels(playbook, posts, features, outliers, agreement, patterns=None,
                 best.append('<div class="breakdown">')
                 best.append(f'<div><h4>Hook</h4><p>{esc(hook.get("line"))}</p><p>{esc(hook.get("why"))}</p></div>')
                 best.append(f'<div><h4>Argument</h4><p>{esc(argument.get("summary"))}</p>{listed(argument.get("beats"))}</div>')
-                best.append(f'<div><h4>Ending</h4><p>{esc(ending.get("line"))}</p><p>{esc(ending.get("cta"))}</p><p>{esc(ending.get("why"))}</p></div>')
+                cta_html = f'<p>{esc(ending.get("cta"))}</p>' if str(ending.get('cta') or '').strip().lower() not in ('', 'none', 'n/a') else ''
+                best.append(f'<div><h4>Ending</h4><p>{esc(ending.get("line"))}</p>{cta_html}<p>{esc(ending.get("why"))}</p></div>')
                 best.append(f'<div><h4>What you see</h4><p>{esc(analysis.get("visual"))}</p></div>')
                 best.append(f'<div><h4>{"What it had going for it" if css else "Why it worked"}</h4>{listed(analysis.get("drivers"))}</div><div><h4>What held it back</h4>{listed(analysis.get("drags"))}</div>')
                 best.append(f'<div><h4>Borrow</h4><p>{esc(item.get("borrow") or analysis.get("borrow"))}</p></div></div>')
@@ -866,7 +950,8 @@ def raw_data_html(posts_data, posts, features, outliers, labels, patterns, agree
     rows = [(esc(key), fmt(row.get('spearman')), fmt(row.get('median_outlier')),
              fmt(row.get('median_normal')), fmt(row.get('median_dud')),
              esc(', '.join(f"{t['label']} {fmt(t['outlier_rate'])}" for t in row.get('terciles', []))))
-            for key, row in patterns.get('tempo', {}).items()]
+            for key, row in patterns.get('tempo', {}).items()
+            if row.get('spearman') is not None]  # no spread (every caption has 0 arrows on a video account): nothing to show
     parts.append(table(('Field', 'Spearman', 'Outlier median', 'Normal median', 'Dud median', 'Terciles'), rows))
     parts.append('</section><section><h2>Argument skeleton</h2><h3>Role sequences</h3>')
     sent = patterns.get('sentences', {})
@@ -886,7 +971,7 @@ def raw_data_html(posts_data, posts, features, outliers, labels, patterns, agree
         feat = features.get(post_id, {})
         row = outliers.get('posts', {}).get(post_id, {})
         band = row.get('band', 'unknown')
-        hook = feat.get('segments', {}).get('hook_text') or post.get('caption', '')[:160]
+        hook = opening(post_id, {post_id: post}, features, cap=40) or post.get('caption', '')[:160]
         parts.append(f'<details><summary id="data-post-{esc(post_id)}"><span>{esc(local_iso(post.get("posted_at")))}</span><span>{esc(post.get("format"))}</span><span class="chip {esc(band)}">{esc(band)}</span><b class="num">{fmt(row.get("multiple"), "x")}</b><span class="hook">{esc(hook)}</span></summary><div class="inside">')
         parts.append(f'<p><a href="{safe_url(post.get("url"))}">Open source post</a></p><h3>Labels</h3>')
         label = labels.get('posts', {}).get(post_id, {})

@@ -304,6 +304,30 @@ class BundledForm(ConfigCase):
         self.assertEqual(len(out["posts"]), 6)
 
 
+class DisplayFixes(ConfigCase):
+    def test_split_numbers_and_initials_rejoin(self):
+        self.assertEqual(report.merged_texts(["We do about 1.", "2 million a year.", "In L.", "A. too."]),
+                         ["We do about 1.2 million a year.", "In L. A. too."])
+        self.assertEqual(report.tidy_spoken("It grew 1. 3 times."), "It grew 1.3 times.")
+        self.assertIsNone(report.joins("Done.", "Next one."))
+
+    def test_length_key_uses_the_real_video_length(self):
+        post = {"post_id": "p1", "format": "video", "duration_s": 95}
+        self.assertEqual(report.length_key(post, {}), "90 seconds to 3 minutes")
+        self.assertEqual(report.length_key(dict(post, duration_s=12), {}), "Under 30 seconds")
+
+    def test_title_quotes_and_optional_finding_fields(self):
+        work = full_work(tempfile.mkdtemp(prefix="ct-work-", dir=self.config))
+        patterns.run(work, min_n=3)
+        playbook = {"picture": {"hook": [{"text": "Name the result", "quote_post_id": "p0", "quote_field": "title"}]},
+                    "findings": [{"title": "Lists win", "plain": "Plain words.", "number_line": "3 of 4"}]}
+        page = report.render(work, playbook, "Example Teardown")
+        self.assertIn('class="quote-chip">\u201cHook 0 &lt;script&gt;alert(1)&lt;/script&gt;.\u201d', page)
+        wins = page.split('id="wins" data-tab="wins"', 1)[1].split('id="build" data-tab="build"', 1)[0]
+        self.assertNotIn("Try this", wins)
+        self.assertNotIn("chip confidence", wins)
+
+
 class Lint(ConfigCase):
     def test_rendered_page_is_clean(self):
         work = full_work(tempfile.mkdtemp(prefix="ct-work-", dir=self.config))

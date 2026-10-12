@@ -89,8 +89,11 @@ the shape only.
 
 Notes:
 - `picture` is the one-screen playbook. Four columns, 3-5 lines each, each line carrying its number.
-  An item can be a string, or `{text, tag, stat: {hits, n}, quote_post_id}`: the report draws a bar
-  from `stat` and quotes that post's real opening line.
+  An item can be a string, or `{text, tag, stat: {hits, n}, quote_post_id, quote_field}`: the report
+  draws a bar from `stat` and quotes that post's real opening line, or its caption's first line (the
+  video title on YouTube) when `quote_field` is `"title"`.
+- In `findings`, `confidence` and `your_move` are optional: without them the report shows no chip and
+  no "Try this" line.
 - `findings[].numbers` draws the "this kind of post vs all posts" bar. `base` is the all-posts rate (0-1).
 - `confidence`: `strong` = n of 15 or more and a clear gap; `medium` = n 5-14; `hunch` = n under 5.
 - `agreement` is copied from `.work/agreement.json`.
