@@ -53,6 +53,42 @@ def download_command(post: dict, dest_dir: Path) -> list[str] | None:
             media_url or post['url']]
 
 
+def store_transcript(db: Path, video_id: str, out_json: Path, max_start: float | None = None) -> bool:
+    """Reuse a transcript you already hold: a SQLite database with a transcripts(video_id, transcript) table.
+    The text may carry [h:mm:ss] markers (about every 30 seconds); words are spread evenly inside each block."""
+    import sqlite3
+    try:
+        with sqlite3.connect(f'file:{db}?mode=ro', uri=True) as con:
+            row = con.execute('select transcript from transcripts where video_id = ?', (video_id,)).fetchone()
+    except sqlite3.Error:
+        return False
+    if not row or not row[0]:
+        return False
+    parts = re.split(r'\[(\d+):(\d{2}):(\d{2})\]', row[0])
+    blocks, start = [], 0.0
+    if parts[0].strip():
+        blocks.append((0.0, parts[0]))
+    for i in range(1, len(parts) - 3, 4):
+        start = int(parts[i]) * 3600 + int(parts[i + 1]) * 60 + int(parts[i + 2])
+        blocks.append((float(start), parts[i + 3]))
+    tokens = []
+    for n, (start, text) in enumerate(blocks):
+        if max_start is not None and start >= max_start:
+            break
+        end = blocks[n + 1][0] if n + 1 < len(blocks) else start + 30
+        words = text.split()
+        step = max(end - start, 1) / max(1, len(words))
+        for k, word in enumerate(words):
+            at = start + k * step
+            if max_start is not None and at >= max_start:
+                break
+            tokens.append({'text': ' ' + word, 'startMs': round(at * 1000), 'endMs': round((at + step) * 1000)})
+    if not tokens:
+        return False
+    write_json(out_json, {'text': ''.join(t['text'] for t in tokens).strip(), 'captions': tokens, 'source': f'store:{db.name}'})
+    return True
+
+
 def captions_available() -> bool:
     """youtube-transcript-api is optional: with it, YouTube videos use their own captions before whisper."""
     return importlib.util.find_spec('youtube_transcript_api') is not None
@@ -210,11 +246,20 @@ WHISPER = threading.Semaphore(1)  # whisper.cpp runs on the GPU: parallel jobs o
 
 
 def process(post: dict, dest: Path, downloader, transcriber, probe, keep_media: bool,
-            max_seconds: float = 180) -> dict:
+            max_seconds: float = 180, store: Path | None = None) -> dict:
     """One video: download, measure, transcribe. Silent or overlong videos keep duration and cuts."""
     entry = {'status': None, 'duration_s': None, 'cuts': None, 'transcript_path': None,
              'media_path': None, 'error': None}
     dest.mkdir(parents=True, exist_ok=True)
+    if store and post.get('platform') == 'youtube':
+        long_video = is_long_youtube(post)
+        if store_transcript(Path(store), str(post['post_id']), dest / 'transcript.json', INTRO_SECONDS if long_video else None):
+            # Already transcribed: no download, no whisper. Cuts stay unknown for these.
+            entry.update(status='ok', transcript_path=str(dest / 'transcript.json'), from_store=True,
+                         duration_s=min(post.get('duration_s') or 0, INTRO_SECONDS) if long_video else post.get('duration_s'))
+            if long_video:
+                entry['intro_only_s'] = INTRO_SECONDS
+            return entry
     try:
         path = Path(downloader(post, dest))
         entry['media_path'] = str(path)
@@ -271,7 +316,7 @@ def process(post: dict, dest: Path, downloader, transcriber, probe, keep_media: 
 
 
 def run(work: Path, *, downloader=None, transcriber=None, probe=None, workers=2, limit=None,
-        keep_media=False, max_seconds=180) -> dict:
+        keep_media=False, max_seconds=180, store=None) -> dict:
     work = Path(work)
     posts = read_json(work / 'posts.json')['posts']
     if limit is not None:
@@ -294,7 +339,7 @@ def run(work: Path, *, downloader=None, transcriber=None, probe=None, workers=2,
     def one(post):
         post_id = str(post['post_id'])
         entry = process(post, work / 'media' / safe_id(post_id), downloader, transcriber, probe, keep_media,
-                        max_seconds)
+                        max_seconds, store)
         with lock:
             output[post_id] = entry
             write_json(work / 'media.json', output)
@@ -312,6 +357,8 @@ def main() -> None:
     parser.add_argument('--limit', type=int)
     parser.add_argument('--keep-media', action='store_true', help='keep downloaded videos after transcribing')
     parser.add_argument('--max-seconds', type=float, default=180, help='longer videos are measured, not transcribed')
+    parser.add_argument('--store', type=Path, help='a SQLite database of transcripts you already hold, with a '
+                        'transcripts(video_id, transcript) table: YouTube videos found there are not downloaded or transcribed again')
     args = parser.parse_args()
     try:
         transcriber = load_settings()['transcriber']
@@ -320,11 +367,11 @@ def main() -> None:
     if not transcriber.get('command') and not transcriber.get('model'):
         posts = args.work / 'posts.json'
         platform = read_json(posts).get('platform') if posts.exists() else None
-        if platform != 'youtube' or not captions_available():
+        if platform != 'youtube' or not (captions_available() or args.store):
             parser.exit(2, 'ERROR: no whisper model set. Run SETUP.md, or set transcriber.model in config/settings.json.\n')
         print('No whisper model set: YouTube captions only. A video with no captions stays no_speech.')
     result = run(args.work, workers=args.workers, limit=args.limit, keep_media=args.keep_media,
-                 max_seconds=args.max_seconds)
+                 max_seconds=args.max_seconds, store=args.store)
     counts = {status: sum(row['status'] == status for row in result.values()) for status in sorted({r['status'] for r in result.values()})}
     print(' '.join(f'{key}: {value}' for key, value in counts.items()))
 

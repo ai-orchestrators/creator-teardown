@@ -50,7 +50,7 @@ def sentences_from_captions(captions: list[dict]) -> list[dict]:
                            'end_s': round(last['endMs'] / 1000, 3), 'words': count_words(text)})
             open_tokens.clear()
 
-    previous, number_hold = None, False
+    previous, number_hold, letter_hold = None, False, False
     for token in captions:
         if not token.get('text', '').strip() or re.fullmatch(r'\s*[\[(][^\])]*[\])]\s*', token['text']):
             continue  # blank tokens and whisper tags like [Music] or (upbeat music)
@@ -58,12 +58,18 @@ def sentences_from_captions(captions: list[dict]) -> list[dict]:
             number_hold = False
             if not re.match(r'\d', token['text']):
                 close()  # "1." really did end the sentence
+        if letter_hold:
+            letter_hold = False
+            if not re.match(r'\s*[A-Z]\.', token['text']):
+                close()  # a lone "A." ended the sentence after all
         if previous and open_tokens and token.get('startMs', 0) - previous.get('endMs', 0) >= 1000 and count_words(' '.join(t['text'] for t in open_tokens)) >= 3:
             close()
         open_tokens.append(token)
         if token['text'].strip().endswith(('.', '!', '?')):
             if re.search(r'\d\.$', token['text'].strip()):
                 number_hold = True  # "1." may be the start of "1.2 million": decide on the next token
+            elif re.fullmatch(r'[A-Z]\.', token['text'].strip()):
+                letter_hold = True  # "L." may be the start of "L. A.": decide on the next token
             elif not ABBREV_END.search(''.join(t['text'] for t in open_tokens).strip()):
                 close()
         previous = token

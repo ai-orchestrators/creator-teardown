@@ -138,6 +138,11 @@ class CaptionSentences(unittest.TestCase):
         self.assertEqual([s["text"] for s in features.sentences_from_captions(caps)],
                          ["We made 1.2 million in the U.S. market.", "Then I sold 3.", "Done."])
 
+    def test_spaced_initials_stay_whole(self):
+        caps = tokens((" I", 0, 100), (" have", 100, 200), (" a", 200, 300), (" salon", 300, 400), (" in", 400, 500),
+                      (" L.", 500, 600), (" A.", 600, 700), (" Perfect.", 900, 1100))
+        self.assertEqual([s["text"] for s in features.sentences_from_captions(caps)], ["I have a salon in L. A.", "Perfect."])
+
     def test_caption_split_keeps_abbreviations(self):
         self.assertEqual(features.split_sentences("We grew 1.2x in the U.S. last year. Dr. Lee agreed."),
                          ["We grew 1.2x in the U.S. last year.", "Dr. Lee agreed."])
@@ -171,6 +176,46 @@ class YouTube(unittest.TestCase):
             del sys.modules['youtube_transcript_api']
         self.assertEqual([t['text'] for t in tokens], [" Here's", ' the', ' deal.'])
         self.assertEqual([s['text'] for s in features.sentences_from_captions(tokens)], ["Here's the deal."])
+
+
+class BlindSample(unittest.TestCase):
+    def test_spread_across_bands_with_instructions(self):
+        import blind_sample
+        with tempfile.TemporaryDirectory() as d:
+            work = Path(d)
+            bands = ['outlier'] * 10 + ['normal'] * 20 + ['dud'] * 10
+            write(work / 'features.json', {f'p{i}': {'segments': {'hook_text': f'hook {i}', 'opening_text': '', 'body_text': '', 'ending_text': ''}} for i in range(40)})
+            write(work / 'outliers.json', {'posts': {f'p{i}': {'band': b} for i, b in enumerate(bands)}})
+            form = work / 'form.json'
+            write(form, {'questions': {k: {'instructions': f'judge {k}', 'criteria': {'a': 'A', 'b': 'B'}} for k in ('hook_type', 'structure', 'evidence', 'ending')}})
+            out = blind_sample.run(work, n=20, form_path=form)
+            picked = [p['post_id'] for p in out['posts']]
+            self.assertEqual(len(set(picked)), 20)
+            counts = {b: sum(bands[int(pid[1:])] == b for pid in picked) for b in ('outlier', 'normal', 'dud')}
+            self.assertEqual(counts, {'outlier': 7, 'normal': 7, 'dud': 6})
+            self.assertEqual(out['questions']['hook_type']['instructions'], 'judge hook_type')
+            self.assertIn('hook_text', out['posts'][0])
+
+
+class TranscriptStore(unittest.TestCase):
+    def test_reuses_stored_transcript_without_download(self):
+        import sqlite3
+        with tempfile.TemporaryDirectory() as d:
+            db = Path(d) / 'transcripts.db'
+            with sqlite3.connect(db) as con:
+                con.execute('create table transcripts (video_id text, transcript text)')
+                con.execute('insert into transcripts values (?, ?)', ('v1', '[0:00:00] Here is the deal. [0:00:30] Second block. [0:05:00] Too late.'))
+            post = {'post_id': 'v1', 'platform': 'youtube', 'duration_s': 1800, 'url': 'https://example.com/v1'}
+            boom = lambda *a, **k: (_ for _ in ()).throw(AssertionError('should not download'))
+            entry = media.process(post, Path(d) / 'out', boom, boom, boom, False, store=db)
+            self.assertEqual((entry['status'], entry['from_store'], entry['intro_only_s']), ('ok', True, 240))
+            tokens = read(Path(d) / 'out' / 'transcript.json')['captions']
+            self.assertEqual(' '.join(t['text'].strip() for t in tokens), 'Here is the deal. Second block.')
+            self.assertEqual(tokens[4]['startMs'], 30000)
+            missing = dict(post, post_id='v2')
+            calls = []
+            media.process(missing, Path(d) / 'out2', lambda *a: calls.append('download') or (_ for _ in ()).throw(RuntimeError('x')), boom, boom, False, store=db)
+            self.assertEqual(calls, ['download'])
 
 
 class Positions(unittest.TestCase):

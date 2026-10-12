@@ -293,6 +293,17 @@ class YouTubeSetup(ConfigCase):
         self.assertTrue(any("youtube-transcript-api" in n for n in report_data["notes"]))
 
 
+class BundledForm(ConfigCase):
+    def test_blind_sample_reads_the_bundled_post_form(self):
+        import blind_sample
+        work = full_work(tempfile.mkdtemp(prefix="ct-work-", dir=self.config))
+        out = blind_sample.run(work, n=6)
+        form = json.loads((SCRIPTS.parent / "decisions" / "creator.post.v1.json").read_text())
+        self.assertEqual(set(out["questions"]), {"hook_type", "structure", "evidence", "ending"})
+        self.assertEqual(out["questions"]["ending"]["instructions"], form["questions"]["ending"]["instructions"])
+        self.assertEqual(len(out["posts"]), 6)
+
+
 class Lint(ConfigCase):
     def test_rendered_page_is_clean(self):
         work = full_work(tempfile.mkdtemp(prefix="ct-work-", dir=self.config))

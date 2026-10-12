@@ -53,7 +53,7 @@ Offer: ... (source: file)
 Voice: <path to their tone-of-voice file> (theirs | drafted this run)
 Regional English: AU | UK | US
 CTA: ... (theirs | assumed)
-Default rebuild format: linkedin-text | short-video-script | carousel-outline | match-source
+Default rebuild format: linkedin-text | short-video-script | carousel-outline | youtube-short | youtube-long | match-source
 Facts a rebuild may use: one line each, with the file that proves it
 Never say: claims they cannot back, competitors, anything from another client
 Gaps: ...

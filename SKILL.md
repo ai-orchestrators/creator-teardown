@@ -105,6 +105,8 @@ python3 S/media.py --work <run>/.work --workers 3
 
 Downloads each video, measures duration and scene cuts with ffmpeg, then transcribes it locally with whisper.cpp (the binary and model in `settings.transcriber`). Downloads run in parallel; whisper runs one at a time because parallel jobs only queue on the GPU. On a recent laptop with a medium English model expect a few reels a minute, so a 200-reel account can take an hour. Resumable: rerun after a stop and finished posts are skipped. Videos are deleted after transcription (`--keep-media` keeps them).
 
+**Reuse before you transcribe.** If you already hold transcripts for this creator in a SQLite database with a `transcripts(video_id, transcript)` table, pass it with `--store <db>`: YouTube videos found there are neither downloaded nor transcribed again (their cut counts stay unknown). `[h:mm:ss]` markers in the text, if present, give the timing. Videos not in the store go through media.py as normal.
+
 Statuses: `ok`; `no_speech` (silent or music-only, the caption stands in); `too_long` (over 3 minutes, measured but not transcribed, `--max-seconds` to change); `download_failed`. Instagram posts with no `media_url` stay `download_failed`: yt-dlp on Instagram needs a login, and this skill never uses one. More than 10% failed: say so in the report's limits.
 
 ### 3. Features and outliers
@@ -121,7 +123,7 @@ Outlier rule: a post's multiple is its metric over the median of the 30 nearest 
 **Topics.** Read 40 captions across bands and write 6-10 topics for this creator to `<run>/.work/topics.json`:
 `{"topics": {"slug": "One plain sentence on what counts."}}`. Topics are mutually exclusive and named in the creator's world (a business coach might get `offers`, `lead_gen`, `sales`, `hiring`, `mindset`).
 
-**Blind sample (golden-set seed).** Before Jev runs, pick 20 posts spread across outlier, normal and dud. Write `<run>/.work/blind_sample.json` (`{questions: {qid: {instructions, options}}, posts: [{post_id, ...segments}]}`), then spawn ONE `Agent` that reads only that file, using the prompt in `references/blind-label-agent.md`. Give it the `instructions` as well as the options for `hook_type`, `structure`, `evidence` and `ending` from `decisions/creator.post.v1.json`: without the instructions it judges a different question than Jev does. Write its lines to `<run>/.work/claude_labels.jsonl`. The agent never sees Jev's answers, which is what makes the agreement number mean something.
+**Blind sample (golden-set seed).** Before Jev runs, `python3 S/blind_sample.py --work <run>/.work` picks 20 posts spread across outlier, normal and dud (shuffled, so the order gives nothing away) and writes `<run>/.work/blind_sample.json` (`{questions: {qid: {instructions, options}}, posts: [{post_id, ...segments}]}`), with the `instructions` and options for `hook_type`, `structure`, `evidence` and `ending` taken from `decisions/creator.post.v1.json`: without the instructions the agent would judge a different question than Jev does. Then spawn ONE `Agent` that reads only that file, using the prompt in `references/blind-label-agent.md`. Write its lines to `<run>/.work/claude_labels.jsonl`. The agent never sees Jev's answers, which is what makes the agreement number mean something.
 
 ### 5. Jev labels
 
@@ -241,6 +243,7 @@ The rebuild agents use these when they are installed, and work without them:
 | `decisions/creator.post.v1.json`, `creator.sentence.v1.json` | The Jev question forms. Topic options are filled per run from `topics.json` |
 | `scripts/` | The pipeline. Every script has `--help` |
 | `scripts/check_setup.py` | Tools, keys (set or missing, never the value) and config |
+| `scripts/blind_sample.py` | Step 4: the 20-post blind sample with the question forms Jev gets |
 | `scripts/jev_client.py` | The small Jev client: TypeSafe first, OpenRouter on 429 or 529 |
 | `scripts/lint_report.py` | Pre-share lint for the rendered page |
 | `scripts/tests/` | Offline tests. `python3 -m unittest discover -s scripts/tests` from the repo root |

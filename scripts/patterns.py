@@ -238,7 +238,7 @@ def sentence_analysis(rows, min_n):
         by_band = {}
         for band in ('outlier', 'normal', 'dud'):
             group = [r for r in rows if r['band'] == band and r['sentence_labels']]
-            values = {s.get(field, {}).get('value') for r in group for s in r['sentence_labels']}
+            values = {s.get(field, {}).get('value') for r in group for s in r['sentence_labels']} - {None}  # a failed Jev call leaves None
             by_band[band] = {value: statistics.mean(sum(s.get(field, {}).get('value') == value for s in r['sentence_labels']) /
                                                len(r['sentence_labels']) for r in group)
                              for value in sorted(values) if value}
