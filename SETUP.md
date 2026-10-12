@@ -53,7 +53,8 @@ prints a key's value. Show the user the table.
 | python3 3.9+ | everything | ships with macOS |
 | ffmpeg + ffprobe | video measuring, transcription, thumbnails | `brew install ffmpeg` |
 | whisper.cpp (`whisper-cli`) | transcribing video posts, locally | `brew install whisper-cpp` |
-| yt-dlp | YouTube Shorts, and TikTok and LinkedIn video downloads | `brew install yt-dlp` |
+| yt-dlp | YouTube downloads (and the Shorts listing without a key), TikTok and LinkedIn video | `brew install yt-dlp`, and keep it current: an old one gets 403s |
+| youtube-transcript-api (optional) | YouTube's own captions, free and punctuated, before whisper | `pip install youtube-transcript-api` |
 
 On Linux use the package manager, or build whisper.cpp from source. **Do not proceed
 past a missing ffmpeg when any video platform is chosen.** Give the install command and stop.
@@ -64,7 +65,7 @@ past a missing ffmpeg when any video platform is chosen.** Give the install comm
 
 - Instagram (reels and carousels, through Apify)
 - TikTok (through Apify)
-- YouTube Shorts (through yt-dlp, free)
+- YouTube (Shorts and long videos, through the YouTube Data API's free quota; yt-dlp without a key)
 - LinkedIn (posts, through Apify; no view counts, so the metric is reactions)
 
 Store as `platforms`: any of `instagram`, `tiktok`, `youtube`, `linkedin`.
@@ -76,6 +77,7 @@ Store as `platforms`: any of `instagram`, `tiktok`, `youtube`, `linkedin`.
 | `TYPESAFE_API_KEY` | Always. Jev labels every post | A TypeSafe account (typesafe.ai), API keys page |
 | `APIFY_TOKEN` | Instagram, TikTok or LinkedIn | An Apify account (apify.com), Settings, API and Integrations |
 | `OPENROUTER_API_KEY` | Optional. Used only when TypeSafe is busy (429 or 529) | An OpenRouter account (openrouter.ai), Keys |
+| `YOUTUBE_API_KEY` | Optional, YouTube only. Without it the skill reads only the Shorts tab, with no upload dates, likes or long videos | A Google Cloud project with the YouTube Data API v3 turned on, then Credentials, Create API key |
 
 For each missing key the chosen platforms need, tell the user to add it themselves,
 either as an export in their shell profile or as one line in `config/.env`:
@@ -95,6 +97,9 @@ and **Skip for now**. On "Added", re-run `python3 scripts/check_setup.py`. A mis
 it is set.
 
 ## Step 4 - Transcriber (only when a video platform is chosen)
+
+YouTube-only, with `youtube-transcript-api` installed? Whisper is then only the fallback for videos
+with no captions, or when YouTube blocks caption pulls for a while. Offer to skip this step.
 
 Find what is installed:
 

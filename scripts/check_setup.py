@@ -12,6 +12,7 @@ Exit 0 when everything the configured platforms need is present, else 1.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import shutil
 from pathlib import Path
@@ -48,6 +49,8 @@ def run() -> dict:
     report["tools"]["whisper"] = tool(transcriber.get("binary") or "whisper-cli")
     report["whisper_model"] = {"path": model, "found": bool(model) and Path(model).expanduser().is_file()}
     report["custom_transcriber"] = bool(transcriber.get("command"))
+    report["optional"] = {"youtube-transcript-api": importlib.util.find_spec("youtube_transcript_api") is not None}
+    captions_only = platforms == {"youtube"} and report["optional"]["youtube-transcript-api"]
 
     for name in ("settings.json", "profile.md"):
         if not report["config"][name]:
@@ -67,10 +70,18 @@ def run() -> dict:
             if not report["tools"][name]["found"]:
                 report["problems"].append(f"{name} is not installed. Needed to measure and transcribe video.")
         if not report["custom_transcriber"]:
+            # YouTube-only with captions available: whisper only covers videos that have no captions.
+            whisper_gaps = (report["notes"] if captions_only else report["problems"])
             if not report["tools"]["whisper"]["found"]:
-                report["problems"].append(f"{transcriber.get('binary') or 'whisper-cli'} is not installed (whisper.cpp).")
+                whisper_gaps.append(f"{transcriber.get('binary') or 'whisper-cli'} is not installed (whisper.cpp).")
             if not report["whisper_model"]["found"]:
-                report["problems"].append("No whisper model file found. Set transcriber.model in config/settings.json.")
+                whisper_gaps.append("No whisper model file found. Set transcriber.model in config/settings.json.")
+    if "youtube" in platforms and not report["keys"]["YOUTUBE_API_KEY"]:
+        report["notes"].append("YOUTUBE_API_KEY is missing. Optional: without it YouTube falls back to the Shorts tab "
+                               "listing, with no upload dates, likes or long videos.")
+    if "youtube" in platforms and not report["optional"]["youtube-transcript-api"]:
+        report["notes"].append("youtube-transcript-api is not installed. Optional (pip install youtube-transcript-api): "
+                               "without it whisper transcribes every YouTube video.")
     if platforms & {"youtube", "tiktok", "linkedin"} and not report["tools"]["yt-dlp"]["found"]:
         report["problems"].append("yt-dlp is not installed. Needed for YouTube Shorts and for TikTok and LinkedIn video.")
     return report
@@ -93,6 +104,8 @@ def main() -> int:
         print(f"  brand profiles {', '.join(report['brand_profiles'])}")
     for name, status in (report.get("tools") or {}).items():
         print(f"  {name:<14} {status['path'] if status['found'] else 'missing'}")
+    for name, present in (report.get("optional") or {}).items():
+        print(f"  {name:<14} {'installed' if present else 'not installed (optional)'}")
     if "whisper_model" in report:
         model = report["whisper_model"]
         print(f"  whisper model  {model['path'] if model['found'] else 'missing'}")

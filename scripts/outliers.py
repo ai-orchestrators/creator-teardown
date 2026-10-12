@@ -75,7 +75,7 @@ def split_tiers(values, min_share=0.1, min_gap=1.0, min_separation=0.75):
     return 10 ** ((max(low) + min(high)) / 2)
 
 
-def run(work: Path, *, formats=None, hi=1.5, lo=0.5, min_age_hours=72, k=30, now=None, tiers=True) -> dict:
+def run(work: Path, *, formats=None, hi=1.5, lo=0.5, min_age_hours=72, k=30, now=None, tiers=True, tier_by='auto') -> dict:
     work = Path(work)
     source = read_json(work / 'posts.json')
     posts = source['posts']
@@ -91,8 +91,20 @@ def run(work: Path, *, formats=None, hi=1.5, lo=0.5, min_age_hours=72, k=30, now
                 (p.get('metrics') or {}).get(metric) is not None]
     mature = [p for p in eligible if ages[str(p['post_id'])] is None or ages[str(p['post_id'])] >= min_age_hours]
     secondary_pool = [p for p in mature if secondary and (p.get('metrics') or {}).get(secondary) is not None]
-    cut = split_tiers([p['metrics'][metric] for p in eligible]) if tiers else None
-    tier_of = (lambda p: ('high' if p['metrics'][metric] >= cut else 'low')) if cut else (lambda p: None)
+    platform = (source.get('platform') or '').lower()
+    kinds = {p.get('format') for p in eligible}
+    by_format = tiers and (tier_by == 'format' or (
+        tier_by == 'auto' and platform == 'youtube' and {'short', 'video'} <= kinds
+        and min(sum(p.get('format') == f for p in eligible) for f in ('short', 'video')) >= 5))
+    cut = None if by_format else (split_tiers([p['metrics'][metric] for p in eligible]) if tiers else None)
+    if by_format:  # YouTube Shorts and long videos are different products: each is judged against its own kind
+        tier_of = lambda p: 'high' if p.get('format') == 'video' else 'low'
+        tier_kind, tier_names = 'format', {'low': 'Shorts', 'high': 'long videos'}
+    elif cut:
+        tier_of = lambda p: ('high' if p['metrics'][metric] >= cut else 'low')
+        tier_kind, tier_names = 'reach', {'low': 'test reels' if platform == 'instagram' else 'test posts', 'high': 'main feed'}
+    else:
+        tier_of, tier_kind, tier_names = (lambda p: None), None, None
     result, counts = {}, {}
     for post in posts:
         post_id = str(post['post_id'])
@@ -122,10 +134,10 @@ def run(work: Path, *, formats=None, hi=1.5, lo=0.5, min_age_hours=72, k=30, now
                'min_age_hours': min_age_hours, 'now': moment.isoformat(),
                'baseline': {'global_median': global_median, 'method': 'rolling_nearest_mature', 'k': k},
                'counts': counts, 'posts': result,
-               'tiers': ({'cut': cut, **{name: {'n': len(group), 'median': statistics.median(group)}
+               'tiers': ({'kind': tier_kind, 'names': tier_names, 'cut': cut, **{name: {'n': len(group), 'median': statistics.median(group) if group else None}
                                          for name, group in (('low', [p['metrics'][metric] for p in eligible if tier_of(p) == 'low']),
                                                              ('high', [p['metrics'][metric] for p in eligible if tier_of(p) == 'high']))}}
-                         if cut else None)}
+                         if tier_kind else None)}
     write_json(work / 'outliers.json', payload)
     return payload
 
@@ -138,15 +150,18 @@ def main() -> None:
     parser.add_argument('--lo', type=float, default=0.5)
     parser.add_argument('--min-age-hours', type=float, default=72)
     parser.add_argument('--no-tiers', action='store_true', help='judge every post against one baseline')
+    parser.add_argument('--tier-by', choices=('auto', 'reach', 'format'), default='auto',
+                        help='auto: YouTube Shorts vs long videos by format, everything else by a reach split')
     args = parser.parse_args()
     result = run(args.work, formats=set(args.formats.split(',')) if args.formats else None,
                  hi=args.hi, lo=args.lo, min_age_hours=args.min_age_hours,
-                 tiers=not args.no_tiers)
+                 tiers=not args.no_tiers, tier_by=args.tier_by)
     print(' '.join(f'{band}: {n}' for band, n in result['counts'].items()))
     if result['tiers']:
         t = result['tiers']
-        print(f"two tiers split at {t['cut']:,.0f}: low n {t['low']['n']} (median {t['low']['median']:,.0f}), "
-              f"high n {t['high']['n']} (median {t['high']['median']:,.0f}). Each post is judged against its own tier.")
+        split = f"split at {t['cut']:,.0f}" if t.get('cut') else 'split by format'
+        print(f"two tiers {split}: {t['names']['low']} n {t['low']['n']} (median {t['low']['median'] or 0:,.0f}), "
+              f"{t['names']['high']} n {t['high']['n']} (median {t['high']['median'] or 0:,.0f}). Each post is judged against its own tier.")
 
 
 if __name__ == '__main__':

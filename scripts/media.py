@@ -6,16 +6,22 @@ config/settings.json under `transcriber`. Nothing is uploaded. To use another to
 `transcriber.command` to an argv list with {input} and {output} placeholders; it must write
 {"text": ..., "captions": [{"text", "startMs", "endMs"}]} to {output}.
 
+YouTube: each video's own captions come first when the optional youtube-transcript-api package is
+installed (free, punctuated); whisper covers any video without them. A long video is judged on its
+opening, so only its first 4 minutes are downloaded and transcribed.
+
 Resumable: rerun after a stop and finished posts are skipped.
 """
 from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import importlib.util
 import json
 import re
 import threading
 import subprocess
+import time
 import urllib.request
 from pathlib import Path
 
@@ -31,12 +37,69 @@ def is_stream(url: str | None) -> bool:
     return bool(url) and ('.m3u8' in url or '/playlist/' in url)
 
 
+INTRO_SECONDS = 240  # a long YouTube video is judged on its opening: title, thumbnail and the first 4 minutes
+
+
+def is_long_youtube(post: dict) -> bool:
+    return post.get('platform') == 'youtube' and (post.get('duration_s') or 0) > 180
+
+
 def download_command(post: dict, dest_dir: Path) -> list[str] | None:
     media_url = post.get('media_url')
     if media_url and not is_stream(media_url):
         return None
-    return ['yt-dlp', '-f', 'b[height<=720]/b', '--no-playlist', '-o', str(dest_dir / 'media.%(ext)s'),
+    section = ['--download-sections', f'*0-{INTRO_SECONDS}'] if is_long_youtube(post) else []
+    return ['yt-dlp', '--no-warnings', '-f', 'b/bv*+ba', '-S', 'res:720,vcodec:avc', '--no-playlist', *section, '-o', str(dest_dir / 'media.%(ext)s'),
             media_url or post['url']]
+
+
+def captions_available() -> bool:
+    """youtube-transcript-api is optional: with it, YouTube videos use their own captions before whisper."""
+    return importlib.util.find_spec('youtube_transcript_api') is not None
+
+
+CAPTION_PACE = threading.Semaphore(1)
+CAPTIONS = {'blocked': False}  # YouTube blocks caption pulls from one IP after a burst: then every video goes to whisper
+
+
+def youtube_captions(video_id: str, out_json: Path, max_start: float | None = None, attempts: int = 4) -> None:
+    """YouTube's own captions, written in the same shape as a whisper transcript: word tokens with times.
+    Captions are free and punctuated, so YouTube never needs whisper unless a video has none."""
+    if CAPTIONS['blocked']:
+        raise RuntimeError('captions blocked for this run')
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+    except ImportError:
+        raise RuntimeError('youtube-transcript-api is not installed (optional), so whisper transcribes instead') from None
+    for attempt in range(attempts):
+        try:
+            with CAPTION_PACE:
+                segments = list(YouTubeTranscriptApi().fetch(video_id, languages=['en', 'en-US', 'en-GB']))
+                time.sleep(0.6)
+            break
+        except Exception as exc:
+            text = str(exc) + type(exc).__name__
+            if re.search(r'blocking requests|IpBlocked|RequestBlocked', text):
+                CAPTIONS['blocked'] = True
+                raise
+            if attempt == attempts - 1 or not re.search(r'429|Too Many', text):
+                raise
+            time.sleep(10 * (attempt + 1))
+    tokens = []
+    for segment in segments:
+        if max_start is not None and segment.start >= max_start:
+            break
+        words = re.sub(r'\s+', ' ', segment.text.replace('\n', ' ')).strip().split(' ')
+        words = [w for w in words if w]
+        if not words or re.fullmatch(r'\[[^\]]*\]', ' '.join(words)):
+            continue
+        step = max(segment.duration, 0.05) / len(words)
+        for n, word in enumerate(words):
+            start = segment.start + n * step
+            tokens.append({'text': ' ' + word, 'startMs': round(start * 1000), 'endMs': round((start + step) * 1000)})
+    if not tokens:
+        raise RuntimeError('captions were empty')
+    write_json(out_json, {'text': ''.join(t['text'] for t in tokens).strip(), 'captions': tokens, 'source': 'youtube_captions'})
 
 
 def download(post: dict, dest_dir: Path) -> Path:
@@ -163,7 +226,26 @@ def process(post: dict, dest: Path, downloader, transcriber, probe, keep_media: 
     except Exception as exc:
         entry['error'] = str(exc)[-500:]
     duration = entry['duration_s']
-    if duration and duration > max_seconds:
+    if post.get('platform') == 'youtube':
+        transcript_path = dest / 'transcript.json'
+        long_video = is_long_youtube(post)
+        if long_video:
+            entry['intro_only_s'] = INTRO_SECONDS  # cuts, pace and the script cover the opening, not the whole video
+        try:
+            youtube_captions(str(post['post_id']), transcript_path, INTRO_SECONDS if long_video else None)
+            entry['transcript_path'] = str(transcript_path)
+        except Exception as exc:
+            entry['error'] = f'captions: {exc}'[:500]
+            try:  # no captions: whisper the downloaded file (a Short, or the first 4 minutes of a long video)
+                with WHISPER:
+                    transcriber(path, transcript_path, **({'timeout_s': 900} if transcriber is transcribe else {}))
+                if transcript_path.exists():
+                    entry['transcript_path'] = str(transcript_path)
+            except Exception as whisper_exc:
+                entry['error'] += f' | whisper: {whisper_exc}'[:300]
+        entry['status'] = ('ok' if duration is not None else 'probe_failed') if entry['transcript_path'] else \
+            ('no_speech' if duration is not None else 'transcribe_failed')
+    elif duration and duration > max_seconds:
         entry['status'] = 'too_long'  # a webinar or long video is not short-form: the caption stands in
     else:
         transcript_path = dest / 'transcript.json'
@@ -236,7 +318,11 @@ def main() -> None:
     except ConfigError as exc:
         parser.exit(2, f'ERROR: {exc}\n')
     if not transcriber.get('command') and not transcriber.get('model'):
-        parser.exit(2, 'ERROR: no whisper model set. Run SETUP.md, or set transcriber.model in config/settings.json.\n')
+        posts = args.work / 'posts.json'
+        platform = read_json(posts).get('platform') if posts.exists() else None
+        if platform != 'youtube' or not captions_available():
+            parser.exit(2, 'ERROR: no whisper model set. Run SETUP.md, or set transcriber.model in config/settings.json.\n')
+        print('No whisper model set: YouTube captions only. A video with no captions stays no_speech.')
     result = run(args.work, workers=args.workers, limit=args.limit, keep_media=args.keep_media,
                  max_seconds=args.max_seconds)
     counts = {status: sum(row['status'] == status for row in result.values()) for status in sorted({r['status'] for r in result.values()})}

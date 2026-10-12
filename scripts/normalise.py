@@ -123,13 +123,45 @@ def linkedin(item: dict, handle: str):
     }
 
 
+def iso_seconds(value) -> float | None:
+    """'PT37M14S' (YouTube Data API) in, seconds out."""
+    match = re.fullmatch(r'P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?', str(value or ''))
+    if not match or not any(match.groups()):
+        return None
+    days, hours, minutes, seconds = (int(x or 0) for x in match.groups())
+    return float(days * 86400 + hours * 3600 + minutes * 60 + seconds)
+
+
+YOUTUBE_SHORT_MAX_S = 180  # YouTube Shorts run up to 3 minutes
+
+
 def youtube(item: dict, handle: str):
     video_id = item.get("id")
-    return {
+    if isinstance(item.get("snippet"), dict):  # YouTube Data API item
+        snippet, stats = item["snippet"], item.get("statistics") or {}
+        duration = iso_seconds((item.get("contentDetails") or {}).get("duration"))
+        short = duration is not None and duration <= YOUTUBE_SHORT_MAX_S
+        thumbs = snippet.get("thumbnails") or {}
+        thumb = next((thumbs[k]["url"] for k in ("maxres", "standard", "high", "medium", "default") if (thumbs.get(k) or {}).get("url")), None)
+        return {
+            "post_id": video_id,
+            "url": f"https://www.youtube.com/shorts/{video_id}" if short else f"https://www.youtube.com/watch?v={video_id}",
+            "platform": "youtube",
+            "format": "short" if short else "video",
+            "posted_at": as_iso(snippet.get("publishedAt")),
+            "duration_s": duration,
+            "caption": snippet.get("title") or "",
+            "description": (snippet.get("description") or "")[:2000],
+            "thumbnail_url": thumb,
+            "media_url": None,
+            "metrics": {"views": as_int(stats.get("viewCount")), "likes": as_int(stats.get("likeCount")),
+                        "comments": as_int(stats.get("commentCount")), "shares": None, "saves": None},
+        }
+    return {  # flat yt-dlp listing: Shorts tab only, no dates or likes
         "post_id": video_id,
         "url": item.get("url") or f"https://www.youtube.com/shorts/{video_id}",
         "platform": "youtube",
-        "format": "video",
+        "format": "short",
         "posted_at": as_iso(item.get("timestamp")),
         "duration_s": item.get("duration"),
         "caption": item.get("title") or "",

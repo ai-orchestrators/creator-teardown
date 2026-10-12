@@ -1,6 +1,6 @@
 # creator-teardown
 
-A Claude Code / Claude Cowork skill that tears down a creator's whole account (their last 100-300 Instagram reels, TikToks, YouTube Shorts or LinkedIn posts) and finds what actually drives their numbers. Then it writes five versions for your brand.
+A Claude Code / Claude Cowork skill that tears down a creator's whole account (their last 100-300 Instagram reels, TikToks, YouTube videos and Shorts, or LinkedIn posts) and finds what actually drives their numbers. Then it writes five versions for your brand.
 
 ## Why this exists
 
@@ -41,13 +41,15 @@ One self-contained HTML report with seven tabs, in dark and light themes, that w
 
 Plus `playbook.json`, `rebuild-drafts.md` and every work file, so any number can be traced back.
 
+**One creator on several channels?** Tear each channel down on its own, then render them as one report: a channel switch sits in the header, the stat strip adds the channels together, and every tab switches with the channel.
+
 ## Cost per run
 
 | Part | Cost |
 |---|---|
 | Jev labels for about 200 posts and their sentences | About US$0.05 to US$0.20. A dry run prints the estimate first, and a cap stops it at US$1 by default |
 | Apify pull for Instagram, TikTok or LinkedIn | About US$1 to US$2 for 200-300 posts at current actor prices. Hard capped at US$5 by default |
-| YouTube Shorts listing | Free (yt-dlp) |
+| YouTube listing | Free (the YouTube Data API's free quota, or yt-dlp without a key) |
 | Transcription | Free. whisper.cpp runs on your machine and nothing is uploaded |
 | Claude | The analyst, playbook, five rebuilds and review panel run on your Claude plan or API usage |
 
@@ -75,10 +77,12 @@ It writes the answers to `config/`. `config/` is gitignored. Your answers and ke
 | Python 3.9+ | Everything. Standard library only, no pip installs |
 | ffmpeg + ffprobe | Measuring and transcribing video, thumbnails |
 | whisper.cpp (`whisper-cli`) and a ggml model | Transcribing video posts |
-| yt-dlp | YouTube Shorts, and TikTok and LinkedIn video |
+| yt-dlp | YouTube video, and TikTok and LinkedIn video |
+| youtube-transcript-api | Optional. YouTube's own captions before whisper: `pip install youtube-transcript-api` |
 | A TypeSafe key | Jev labels. Required |
 | An Apify token | Instagram, TikTok and LinkedIn |
 | An OpenRouter key | Optional fallback when TypeSafe is busy |
+| A YouTube Data API key | Optional. Dates, likes and long videos on YouTube; without it, the Shorts tab only |
 
 ## Installation
 

@@ -1,6 +1,6 @@
 ---
 name: creator-teardown
-description: Tear down a creator's whole account (their last 100-300 Instagram reels, TikToks, YouTube Shorts or LinkedIn posts) and find what actually drives their numbers. Code pulls and transcribes every post and measures pace and outliers against the creator's own rolling median. Jev labels every post and every sentence (hook, structure, topic, evidence, emotion, advice, identity, ending, sentence role). Code turns the labels into lift tables, then Claude writes a one-page playbook, script templates and five rebuilds for whoever the run is for (your own brand, a client after a brand intake, or none when the report is for the creator), and renders a tabbed HTML report. Use when the user says "tear down [creator]", "analyse [creator]'s account", "what makes [creator] work", "their last 200 reels", "creator teardown", "reverse-engineer their content". NOT for breaking down one video, finding new creators to watch, or scoring your own draft.
+description: Tear down a creator's whole account (their last 100-300 Instagram reels, TikToks, YouTube videos and Shorts, or LinkedIn posts) and find what actually drives their numbers. Code pulls and transcribes every post and measures pace and outliers against the creator's own rolling median. Jev labels every post and every sentence (hook, structure, topic, evidence, emotion, advice, identity, ending, sentence role). Code turns the labels into lift tables, then Claude writes a one-page playbook, script templates and five rebuilds for whoever the run is for (your own brand, a client after a brand intake, or none when the report is for the creator), and renders a tabbed HTML report. Use when the user says "tear down [creator]", "analyse [creator]'s account", "what makes [creator] work", "their last 200 reels", "creator teardown", "reverse-engineer their content". NOT for breaking down one video, finding new creators to watch, or scoring your own draft.
 allowedTools: [Read, Write, Edit, Bash, Glob, Grep, Agent, Skill, AskUserQuestion]
 ---
 
@@ -32,7 +32,7 @@ Then run `python3 S/check_setup.py`. Any `MISSING:` line the requested platform 
 |---|---|
 | Jev labels (about 200 posts and their sentences) | About US$0.05 to US$0.20. `classify.py --dry-run` prints the estimate first |
 | Apify pull (Instagram, TikTok, LinkedIn) | About US$1 to US$2 for 200-300 posts at current actor prices. Hard capped by `apify_max_cost_usd` (default US$5) |
-| YouTube Shorts listing (yt-dlp) | Free |
+| YouTube listing (YouTube Data API, or yt-dlp without a key) | Free |
 | Transcription (whisper.cpp) | Free, runs on your machine |
 | Claude (topics, analyst, playbook, five rebuilds, review panel) | Your Claude plan or API usage |
 
@@ -44,7 +44,7 @@ Costs in the report show in the currency set in `config/settings.json` (US$ by d
 
 | Input | Default | Notes |
 |---|---|---|
-| `platform` | none | `instagram`, `tiktok`, `youtube` (Shorts), `linkedin`. Must be in `settings.platforms` |
+| `platform` | none | `instagram`, `tiktok`, `youtube` (Shorts and long videos), `linkedin`. Must be in `settings.platforms` |
 | `handle` | none | Handle or profile URL |
 | `limit` | 200 | Posts to pull. For "200 reels" on Instagram pull about 280: carousels come back too |
 | `for` | none, always asked (step 0) | `me` (your own brand), `client` (a client's brand) or `creator` (the person being analysed) |
@@ -55,7 +55,7 @@ Costs in the report show in the currency set in `config/settings.json` (US$ by d
 ## Platforms and the rules they carry
 
 - **Instagram, TikTok, LinkedIn: Apify public actors** (`APIFY_TOKEN`). Every pull is capped by `--limit` and `--max-cost-usd` (from `apify_max_cost_usd`). Quote the cap to the user before the pull. A single post link (`--handle https://...`) also goes through Apify.
-- **YouTube Shorts: `yt-dlp` listing**, free.
+- **YouTube (Shorts and long videos): the YouTube Data API** (`YOUTUBE_API_KEY`, free quota) lists the last N uploads with dates, views, likes, comments, duration and thumbnails. Without a key it falls back to the yt-dlp Shorts listing (no dates). Shorts (3 minutes or less) and long videos are judged as two separate groups (`outliers.py --tier-by auto`), never against each other. A long video is judged on its packaging and opening: title, thumbnail and the first 4 minutes (only that section is downloaded). Transcripts come from YouTube's own captions when the optional `youtube-transcript-api` package is installed; YouTube blocks caption pulls from one IP after a burst, and the run then switches to whisper for the rest. Keep yt-dlp current: an old one gets 403s.
 - **Never a cookie, never a logged-in browser, never anyone's account.** Public data only.
 - **LinkedIn has no view counts.** The metric is reactions, with reposts as the secondary outlier signal. Say this in the report.
 
@@ -82,7 +82,8 @@ Write the answer to `<run>/audience.json` and carry it into `playbook.audience` 
 | Rebuilds (step 8) | 5, for the chosen brand profile | 5, for their brand, from `<run>/brand/profile.md` | skipped |
 | Craft reviewer (step 9) | yes | yes | skipped (Challenger only) |
 | Playbook voice (step 7) | "they" (the creator), "you" (the user) | "they" (the creator), "you" (the client) | "you" (the creator) |
-| Report | all tabs, byline "Prepared <date> by <preparer>" | all tabs, byline "Prepared <date> for <name> by <preparer>" | no Your versions tab, "Your best posts", "Keep doing this / Do less of this", byline "for <creator>" |
+| Report | all tabs | all tabs | no Your versions tab, "Your best posts", "Keep doing this / Do less of this" |
+| Byline (every run) | `<channel icon> handle \| Prepared <date> by <preparer>` | same | same |
 
 ### 0b. Brand intake (client runs only)
 
@@ -113,7 +114,7 @@ python3 S/features.py --work <run>/.work
 python3 S/outliers.py --work <run>/.work [--formats video]
 ```
 
-Outlier rule: a post's multiple is its metric over the median of the 30 nearest posts in time (so account growth does not fake outliers). 1.5x or more = outlier, 0.5x or less = dud, under 72 hours old = still climbing and left out of every pattern. Accounts that run two reach tiers (test posts and main-feed posts) are split automatically and each post is judged against its own tier. Read the band counts. Under 5 outliers: warn the user that patterns will be thin, and carry on.
+Outlier rule: a post's multiple is its metric over the median of the 30 nearest posts in time (so account growth does not fake outliers). 1.5x or more = outlier, 0.5x or less = dud, under 72 hours old = still climbing and left out of every pattern. Accounts that run two reach tiers (test posts and main-feed posts) are split automatically, and YouTube Shorts and long videos are split by format (`--tier-by auto|reach|format`); each post is judged against its own tier. Only a reach split gets the "promoted tests" analysis. Read the band counts. Under 5 outliers: warn the user that patterns will be thin, and carry on.
 
 ### 4. Topics, then the blind sample
 
@@ -190,7 +191,9 @@ They write `.work/review_challenger.json` and `.work/review_craft.json`. Apply e
 python3 S/report.py --work <run>/.work --playbook <run>/playbook.json --title "<Creator> Teardown" --out <run>/teardown.html
 ```
 
-**Look and branding.** Warm charcoal, Fraunces and Inter, a violet glow and a four-colour gradient on the title, in dark and light themes. The byline reads `<handle, linked to their profile> | Prepared <date>`, plus `for <name>` on client and creator runs, plus `by <name>` (linked to the website) when `config/brand.json` names a preparer. Creator runs drop the Your versions tab and say "Your best posts" and "Keep doing this / Do less of this". The footer and the phone menu carry that name and logo too. No `brand.json` means no preparer anywhere. The cost tile reads "Labelled by Jev" as text, or shows a mark if `brand.json` sets `jev_mark`. `--prepared YYYY-MM-DD` pins the date on a re-render; otherwise it is today in `settings.timezone`. Post dates on the page use the same timezone (UTC by default).
+**Look and branding.** Warm charcoal, Fraunces and Inter, a violet glow and a four-colour gradient on the title, in dark and light themes. The byline reads `<channel icon> <handle, linked to their profile> | Prepared <date>`, plus `by <name>` (linked to the website) when `config/brand.json` names a preparer. It is the same for every run, whoever the run is for: never "for <name>". Creator runs drop the Your versions tab and say "Your best posts" and "Keep doing this / Do less of this". The footer and the phone menu carry that name and logo too. No `brand.json` means no preparer anywhere. The cost tile reads "Labelled by Jev" as text, or shows a mark if `brand.json` sets `jev_mark`. `--prepared YYYY-MM-DD` pins the date on a re-render; otherwise it is today in `settings.timezone`. Post dates on the page use the same timezone (UTC by default).
+
+**More than one channel.** Tear each channel down as its own run folder (same creator, one platform each), then render them as one report: `report.py --work <run A>/.work --playbook <run A>/playbook.json --also <run B> --out <run A>/teardown.html`. The header gets a channel switch (each channel's icon, before the handle); the stat strip shows every channel together (posts, views, interactions, took off, best post, AI cost, with each channel's share underneath); every tab below switches with the channel. Each channel keeps its own playbook, rebuilds and review panel.
 
 **Final review.** Spawn ONE `Agent` per run with `references/final-review-agent.md`. It recomputes every number on the rendered page, checks every quote and post id, the copy rules and the five drafts, and fixes the JSON sources itself. Apply any CODE items it reports, then render again.
 

@@ -2,7 +2,8 @@
 """Render a creator teardown as one self-contained HTML page.
 
 Who prepared it (name, link, logo) comes only from config/brand.json; with none, the byline is just
-"Prepared <date>". Costs show in the currency set in config/settings.json (US$ by default).
+"Prepared <date>". Costs show in the currency set in config/settings.json (US$ by default), and dates
+in settings.timezone (UTC by default).
 """
 from __future__ import annotations
 
@@ -33,7 +34,7 @@ section{padding-top:56px}.eyebrow{color:var(--muted);text-transform:uppercase;le
 </style>'''
 CSS = CSS.replace('</style>', '''
 :root{--role-blue:#6aadc1;--role-sage:#78aa76;--role-gold:#d6a452;--role-violet:#9b8bd6;--role-rose:#d68aa0;--role-sand:#b8a07a}.role-instruction{background:var(--role-violet)!important}.role-reframe,.role-objection{background:var(--role-rose)!important}.role-story_beat{background:var(--role-sand)!important}header{padding-top:24px}header .stats{margin-top:24px}.stat{min-height:132px}.stat b{line-height:1.15}.stat.cost{background:color-mix(in srgb,var(--accent) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 55%,transparent)}.stat.cost b{font-size:27px}.stat .sub{display:block;margin-top:8px}.format-bar,.mini-bar,.anatomy{display:flex;overflow:hidden;border-radius:4px;background:var(--track);height:8px;margin-top:12px}.format-bar i,.mini-bar i,.anatomy i{display:block;height:100%;background:var(--accent)}.format-bar i:nth-child(2){background:var(--muted)}.format-bar i:nth-child(3){background:var(--dud)}.format-bar i:nth-child(4){background:var(--line)}.dots{display:flex;gap:4px;flex-wrap:wrap;margin-top:12px}.dots i{width:8px;height:8px;border-radius:50%;background:var(--muted)}.dots i.outlier{background:var(--accent)}.dots i.dud{background:var(--dud)}.thumb-small{width:42px;height:42px;object-fit:cover;border-radius:4px;float:right}.spark{width:100%;height:28px;margin-top:9px}.decode-controls{display:flex;align-items:center;gap:14px;margin:16px 0}.decode-controls button,.copy-button,.kind-tabs button{background:var(--deep);border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:7px 12px;cursor:pointer}.decode-controls button:hover,.copy-button:hover,.kind-tabs button[aria-selected="true"]{border-color:var(--accent);color:var(--accent)}.one-picture{margin-top:16px}.one-picture svg a:focus-visible{outline:2px solid var(--accent)}.plot-post{transition:opacity .2s}.plot-post.dim{opacity:.16}.plot-post.pending{opacity:.2;filter:grayscale(1)}.plot-post circle,.plot-post rect{stroke:var(--bg);stroke-width:2}.plot-post:hover{opacity:1!important}.picture li{margin:0 0 14px}.picture .chip{display:inline-block;margin-right:6px}.quote-chip{display:block;margin-top:9px;padding:5px 8px;border-left:2px solid var(--accent);background:var(--deep);font-size:13px}.copy-skip{margin-top:24px}.copy-skip li::marker{color:var(--accent)}.kind-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:16px 0}.kind-list{display:grid;gap:8px}.kind-row{display:grid;grid-template-columns:minmax(100px,2fr) 1fr 1.5fr;gap:10px;align-items:center;width:100%;text-align:left;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:10px;cursor:pointer}.kind-row:hover,.kind-row.active{border-color:var(--accent)}.kind-row .mini-bar{margin:0}.flow-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:16px 0 24px}.flow-chips span{padding:8px 10px;border:1px solid var(--line);border-radius:5px}.flow-chips b{color:var(--accent)}.flow-chips em{color:var(--muted);font-style:normal}.anatomy{height:14px;margin:18px 0 8px}.anatomy i{min-width:2px}.role-hook{background:var(--accent)!important}.role-claim,.role-setup{background:var(--role-blue)!important}.role-evidence,.role-proof{background:var(--muted)!important}.role-payoff,.role-benefit{background:var(--role-sage)!important}.role-cta,.role-ending{background:var(--role-gold)!important}.role-other,.role-unclear{background:var(--dud)!important}.anatomy-legend{display:flex;flex-wrap:wrap;gap:9px;font-size:12px;color:var(--muted)}.anatomy-legend i{display:inline-block;width:9px;height:9px;margin-right:4px}.beat-list{list-style:none;padding:0}.beat-list li{border-left:3px solid var(--line);padding:4px 10px;margin:7px 0;background:var(--deep)}.beat-list time{color:var(--accent);font-family:Inter,system-ui,sans-serif}.media-strip{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:18px 0}.media-strip img{height:280px;width:auto;max-width:85%;object-fit:contain;scroll-snap-align:start;border-radius:5px;background:var(--deep)}.post-card .lede{font-size:23px}.stat-chips{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}.stat-chips .chip{padding:5px 8px}.breakdown{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:20px}.breakdown h4{margin:0 0 8px;color:var(--accent)}.rebuild-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:24px}.rebuild-layout aside img{max-width:100%;border-radius:5px}.hook-option{padding:9px 12px;border-left:3px solid var(--line);margin:7px 0;background:var(--deep)}.hook-option.chosen{border-color:var(--accent)}.draft-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.review-card{background:var(--panel);padding:20px;border-radius:8px;margin:16px 0}.review-card h3{display:inline;margin-right:12px}.review-card .tablewrap{margin-bottom:0}.tab-panel h3{margin-top:30px;margin-bottom:16px}.tab-panel h2{margin-bottom:18px}.tab-panel .panel h3:first-child,.post-card h3:first-child,.review-card h3:first-child{margin-top:0}.tab-panel p+.panel,.tab-panel p+.grid,.tab-panel p+.two{margin-top:16px}.tab-panel .two>div{min-width:0}
-.plot-post image{clip-path:inset(0 round 4px)}.menu-bar,.menu-head,.menu-backdrop,.menu-foot,.swipe-hint{display:none}@media(max-width:700px){.menu-bar{display:block;position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line)}.menu-toggle{display:flex;align-items:center;gap:12px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:600 16px Inter,system-ui,sans-serif;padding:11px 14px;cursor:pointer;text-align:left}.menu-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.menu-hint{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.12em}.burger{display:grid;gap:4px;width:18px}.burger i{display:block;height:2px;border-radius:1px;background:var(--accent)}.tabs{position:fixed;top:0;bottom:0;left:0;width:min(82vw,320px);max-width:none;flex-direction:column;align-items:stretch;gap:4px;overflow-y:auto;overflow-x:hidden;background:var(--panel);border-bottom:0;border-right:1px solid var(--line);padding:calc(16px + env(safe-area-inset-top,0px)) 14px calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-102%);transition:transform .25s ease;z-index:20;visibility:hidden}body.menu-open .tabs{transform:none;visibility:visible;box-shadow:0 0 60px rgba(0,0,0,.45)}body.menu-open{overflow:hidden}.tabs button{text-align:left;font-size:17px;padding:14px 12px;border-radius:8px}.tabs button[aria-selected="true"]{background:color-mix(in srgb,var(--accent) 14%,transparent);border-color:transparent}.menu-head{display:flex;align-items:center;justify-content:space-between;padding:0 4px 12px;margin-bottom:6px;border-bottom:1px solid var(--line);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.13em}.tabs .menu-close{font:400 28px/1 Inter,system-ui,sans-serif;padding:4px 10px;color:var(--ink)}.menu-backdrop{display:block;position:fixed;inset:0;z-index:19;background:rgba(0,0,0,.5)}.menu-backdrop[hidden]{display:none}.menu-foot{display:flex;align-items:center;gap:10px;margin-top:auto;padding:14px 4px 0;border-top:1px solid var(--line);color:var(--ink);text-decoration:none;font:500 17px Fraunces,Georgia,serif}.menu-foot img{width:28px;height:28px;border-radius:50%}.chart.one-picture{overflow-x:auto;padding:12px}.chart.one-picture svg{width:880px;max-width:none}.swipe-hint{display:block;color:var(--muted);font-size:13px;margin-top:6px}}details.beats{margin-top:14px;background:var(--deep)}details.beats summary{padding:12px 16px;font-weight:600}details.beats .beat-list{padding:0 16px 14px 34px;margin:0}.rebuild-layout>*,.breakdown>*,.two>*,.grid>*,.post-card>*{min-width:0}header{position:relative;isolation:isolate}header::before{content:"";position:absolute;z-index:-1;inset:-90px 0 auto 0;height:560px;background:radial-gradient(closest-side at 38% 42%,var(--glow),transparent);pointer-events:none}header h1{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:.06em}.byline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;color:var(--muted);font-size:15px;margin:0}.byline a{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid var(--accent)}.byline a:hover{color:var(--accent)}.byline .sep{opacity:.5}.stat .thumb-link{display:block;margin-top:10px}.thumb-best{display:block;width:100%;height:92px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}.jev-credit{display:flex;align-items:center;gap:9px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);text-decoration:none}.jev-credit img{width:32px;height:32px;border-radius:50%;flex:none}.jev-credit strong{color:var(--ink);font-weight:700;font-size:16px}.site-footer{margin-top:72px;padding-top:28px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 28px;color:var(--muted);font-size:14px}.site-footer .brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font:500 20px Fraunces,Georgia,serif}.site-footer .brand img{width:34px;height:34px;border-radius:50%}.site-footer p{margin:0;max-width:62ch}@keyframes tile-rise{from{transform:translateY(12px)}to{transform:translateY(0)}}
+.plot-post image{clip-path:inset(0 round 4px)}.channel-icon,.channel-switch svg,.ch-line svg,.channel-tag svg{display:inline-flex;flex:none}.channel-icon svg{width:20px;height:20px;display:block}.channel-switches{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--panel)}.channel-switch{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;color:var(--muted);font:600 13px Inter,system-ui,sans-serif;padding:6px 12px;border-radius:999px;cursor:pointer}.channel-switch svg{width:18px;height:18px}.channel-switch[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--ink)}.channel-switch:focus-visible{outline:3px solid var(--accent);outline-offset:2px}.stat .ch-line{display:flex;align-items:center;gap:7px;margin-top:6px}.ch-line svg{width:14px;height:14px}.channel-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:10px;background:var(--track)}.channel-bar i{display:block;height:100%}.channel-bar .ch-instagram{background:#e1306c}.channel-bar .ch-youtube{background:#ff0033}.channel-bar .ch-linkedin{background:#0a66c2}.channel-bar .ch-tiktok{background:var(--ink)}.channel-tag{display:flex;align-items:center;gap:8px;margin:0 0 6px}.channel-tag svg{width:16px;height:16px}.format-bar i:nth-child(5){background:var(--track)}.menu-channels{display:none}.menu-bar,.menu-head,.menu-backdrop,.menu-foot,.swipe-hint{display:none}@media(max-width:700px){.menu-channels{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.menu-channels .channel-switch{border:1px solid var(--line)}.menu-bar{display:block;position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line)}.menu-toggle{display:flex;align-items:center;gap:12px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:600 16px Inter,system-ui,sans-serif;padding:11px 14px;cursor:pointer;text-align:left}.menu-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.menu-hint{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.12em}.burger{display:grid;gap:4px;width:18px}.burger i{display:block;height:2px;border-radius:1px;background:var(--accent)}.tabs{position:fixed;top:0;bottom:0;left:0;width:min(82vw,320px);max-width:none;flex-direction:column;align-items:stretch;gap:4px;overflow-y:auto;overflow-x:hidden;background:var(--panel);border-bottom:0;border-right:1px solid var(--line);padding:calc(16px + env(safe-area-inset-top,0px)) 14px calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-102%);transition:transform .25s ease;z-index:20;visibility:hidden}body.menu-open .tabs{transform:none;visibility:visible;box-shadow:0 0 60px rgba(0,0,0,.45)}body.menu-open{overflow:hidden}.tabs button{text-align:left;font-size:17px;padding:14px 12px;border-radius:8px}.tabs button[aria-selected="true"]{background:color-mix(in srgb,var(--accent) 14%,transparent);border-color:transparent}.menu-head{display:flex;align-items:center;justify-content:space-between;padding:0 4px 12px;margin-bottom:6px;border-bottom:1px solid var(--line);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.13em}.tabs .menu-close{font:400 28px/1 Inter,system-ui,sans-serif;padding:4px 10px;color:var(--ink)}.menu-backdrop{display:block;position:fixed;inset:0;z-index:19;background:rgba(0,0,0,.5)}.menu-backdrop[hidden]{display:none}.menu-foot{display:flex;align-items:center;gap:10px;margin-top:auto;padding:14px 4px 0;border-top:1px solid var(--line);color:var(--ink);text-decoration:none;font:500 17px Fraunces,Georgia,serif}.menu-foot img{width:28px;height:28px;border-radius:50%}.chart.one-picture{overflow-x:auto;padding:12px}.chart.one-picture svg{width:880px;max-width:none}.swipe-hint{display:block;color:var(--muted);font-size:13px;margin-top:6px}}details.beats{margin-top:14px;background:var(--deep)}details.beats summary{padding:12px 16px;font-weight:600}details.beats .beat-list{padding:0 16px 14px 34px;margin:0}.rebuild-layout>*,.breakdown>*,.two>*,.grid>*,.post-card>*{min-width:0}header{position:relative;isolation:isolate}header::before{content:"";position:absolute;z-index:-1;inset:-90px 0 auto 0;height:560px;background:radial-gradient(closest-side at 38% 42%,var(--glow),transparent);pointer-events:none}header h1{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:.06em}.byline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;color:var(--muted);font-size:15px;margin:0}.byline a{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid var(--accent)}.byline a:hover{color:var(--accent)}.byline .sep{opacity:.5}.stat .thumb-link{display:block;margin-top:10px}.thumb-best{display:block;width:100%;height:92px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}.jev-credit{display:flex;align-items:center;gap:9px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);text-decoration:none}.jev-credit img{width:32px;height:32px;border-radius:50%;flex:none}.jev-credit strong{color:var(--ink);font-weight:700;font-size:16px}.site-footer{margin-top:72px;padding-top:28px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 28px;color:var(--muted);font-size:14px}.site-footer .brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font:500 20px Fraunces,Georgia,serif}.site-footer .brand img{width:34px;height:34px;border-radius:50%}.site-footer p{margin:0;max-width:62ch}@keyframes tile-rise{from{transform:translateY(12px)}to{transform:translateY(0)}}
 @media(max-width:700px){header .stats{grid-template-columns:repeat(2,minmax(0,1fr))}header .stats .stat.cost:nth-child(odd){grid-column:1/-1}.stat{padding:14px;min-height:115px}.stat b{font-size:25px}.breakdown,.rebuild-layout{grid-template-columns:1fr}.media-strip img{height:230px}.kind-row{grid-template-columns:1fr 1fr}.kind-row .mini-bar{grid-column:1/-1}}
 </style>''')
 
@@ -429,9 +430,9 @@ def guided_panels(playbook, posts, features, outliers, agreement, patterns=None,
     patterns, labels, visuals, analyses = patterns or {}, labels or {}, visuals or {}, analyses or {}
     by_id = {str(post['post_id']): post for post in posts}
     featured_ids = {str(item.get('post_id')) for key in ('best_posts', 'misses') for item in (playbook or {}).get(key, [])}
-    plot = ('<h3>Every post in one picture</h3><div class="decode-controls"><span id="decode-count" aria-live="polite">'
-            f'Decoding {len(posts)} / {len(posts)}</span><button type="button" id="decode-stop">Stop</button>'
-            '<button type="button" id="decode-replay">Replay</button></div>' +
+    plot = ('<h3>Every post in one picture</h3><div class="decode-controls"><span class="decode-count" aria-live="polite">'
+            f'Decoding {len(posts)} / {len(posts)}</span><button type="button" class="decode-stop">Stop</button>'
+            '<button type="button" class="decode-replay">Replay</button></div>' +
             picture_chart(posts, outliers.get('posts', {}), outliers.get('hi', 1.5), visuals, featured_ids, features))
     if not playbook:
         return [plot + '<p>Not written yet. Playbook not written yet.</p>',
@@ -624,139 +625,205 @@ def guided_panels(playbook, posts, features, outliers, agreement, patterns=None,
     return parts
 
 
-def render(work: Path, playbook: dict | None, title: str, prepared=None) -> str:
+CHANNEL_NAMES = {'instagram': 'Instagram', 'youtube': 'YouTube', 'linkedin': 'LinkedIn', 'tiktok': 'TikTok', 'x': 'X'}
+CHANNEL_ICONS = {
+    'instagram': '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="#e1306c" stroke-width="2.2"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="#e1306c" stroke-width="2.2"/><circle cx="17.4" cy="6.6" r="1.3" fill="#e1306c"/></svg>',
+    'youtube': '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="4.5" width="21" height="15" rx="4.5" fill="#ff0033"/><path d="M10 8.8v6.4l5.6-3.2z" fill="#fff"/></svg>',
+    'linkedin': '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="4" fill="#0a66c2"/><path d="M7 10.2v6.8M7 7v.1M11 17v-4.1a2.3 2.3 0 0 1 4.6 0V17M11 10.2V17" stroke="#fff" stroke-width="2.1" stroke-linecap="round" fill="none"/></svg>',
+    'tiktok': '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3.5v11a3.6 3.6 0 1 1-3.6-3.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M14 3.5c.6 2.6 2.4 4.2 5 4.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    'x': '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l14 16M19 4L5 20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+}
+
+
+def channel_icon(platform) -> str:
+    return CHANNEL_ICONS.get(platform, '')
+
+
+def tier_info(outliers, platform) -> dict:
+    """Which kind of split the account has (reach: tests vs main feed, format: Shorts vs long videos) and its names."""
+    tiers = outliers.get('tiers') or {}
+    if not tiers:
+        return {}
+    kind = tiers.get('kind') or 'reach'
+    names = tiers.get('names') or ({'low': 'Shorts', 'high': 'long videos'} if kind == 'format' else
+                                   {'low': 'test reels' if platform == 'instagram' else 'test posts', 'high': 'main feed'})
+    return {'kind': kind, 'names': names}
+
+
+def load_channel(work, playbook) -> dict:
     work = Path(work)
-    settings = load_settings()
-    STYLE.update(spelling=settings['spelling'], currency=settings['currency'], timezone=settings.get('timezone'))
     posts_data = read_json(work / 'posts.json')
-    posts = posts_data['posts']
-    features = read_json(work / 'features.json')
-    outliers = read_json(work / 'outliers.json')
-    labels = read_json(work / 'labels.json')
-    patterns = read_json(work / 'patterns.json')
-    agreement = read_json(work / 'agreement.json') if (work / 'agreement.json').exists() else None
-    visuals = embedded_visuals(work)
-    analyses = read_json(work / 'analyses.json') if (work / 'analyses.json').exists() else {}
-    media = read_json(work / 'media.json') if (work / 'media.json').exists() else {}
-    dates = sorted(local_iso(p['posted_at']) for p in posts if p.get('posted_at'))
-    window = window_text(dates[0], dates[-1]) if dates else ''
-    brand = load_brand()
-    handle = posts_data.get('handle') or ''
-    platform = (posts_data.get('platform') or '').lower()
-    profile = PROFILE_URLS.get(platform, '').format(handle.lstrip('@')) if handle else ''
-    who = f'<a href="{esc(profile)}">{esc(handle)}</a>' if profile else esc(handle)
-    when = f'Prepared {esc(prepared_date(prepared or (playbook or {}).get("prepared")))}'
-    by = (f' by <a href="{esc(brand["url"])}">{esc(brand["name"])}</a>' if brand['url'] else f' by {esc(brand["name"])}') if brand['name'] else ''
-    audience = audience_of(playbook)
-    tabs = tabs_for(audience)
-    if audience['mode'] in ('client', 'creator') and audience.get('name'):
-        when += f' for {esc(audience["name"])}'
-    parts = ['<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">',
-             f'<title>{esc(title)}</title>', FONT, CSS, '<div class="wrap">',
-             f'<header><p class="eyebrow">Creator teardown</p><h1>{esc(title)}</h1><p class="byline">{who}<span class="sep">|</span>{when}{by}</p><div class="grid stats">']
-    bands = outliers.get('posts') or {}
-    counts = {key: sum((p.get('format') or '').lower() == key for p in posts) for key in ('video', 'image', 'carousel', 'text')}
+    ctx = {'work': work, 'playbook': playbook, 'posts_data': posts_data, 'posts': posts_data['posts'],
+           'features': read_json(work / 'features.json'), 'outliers': read_json(work / 'outliers.json'),
+           'labels': read_json(work / 'labels.json'), 'patterns': read_json(work / 'patterns.json'),
+           'agreement': read_json(work / 'agreement.json') if (work / 'agreement.json').exists() else None,
+           'visuals': embedded_visuals(work),
+           'analyses': read_json(work / 'analyses.json') if (work / 'analyses.json').exists() else {},
+           'media': read_json(work / 'media.json') if (work / 'media.json').exists() else {}}
+    ctx['platform'] = (posts_data.get('platform') or '').lower()
+    ctx['handle'] = posts_data.get('handle') or ''
+    ctx['profile'] = PROFILE_URLS.get(ctx['platform'], '').format(ctx['handle'].lstrip('@')) if ctx['handle'] else ''
+    ctx['dates'] = sorted(local_iso(p['posted_at']) for p in ctx['posts'] if p.get('posted_at'))
+    ctx['window'] = window_text(ctx['dates'][0], ctx['dates'][-1]) if ctx['dates'] else ''
+    ctx['tiers'] = tier_info(ctx['outliers'], ctx['platform'])
+    ctx['usd'] = float(ctx['labels'].get('cost_usd') or 0)
+    return ctx
+
+
+def metric_of(post, key):
+    return (post.get('metrics') or {}).get(key)
+
+
+def format_bar(posts) -> str:
+    counts = {key: sum((p.get('format') or '').lower() == key for p in posts) for key in ('video', 'short', 'image', 'carousel', 'text')}
     total = max(1, len(posts))
-    format_bar = '<div class="format-bar" aria-label="Post formats">' + ''.join(f'<i style="width:{n/total*100:.1f}%" title="{key}: {n}"></i>' for key, n in counts.items()) + '</div>'
+    return ('<div class="format-bar" aria-label="Post formats">'
+            + ''.join(f'<i style="width:{n/total*100:.1f}%" title="{key}: {n}"></i>' for key, n in counts.items()) + '</div>')
+
+
+def judged_bar(judged) -> str:
+    if len(judged) <= 100:
+        return '<div class="dots" aria-label="Judged posts">' + ''.join(f'<i class="{esc(r.get("band"))}"></i>' for r in judged) + '</div>'
+    share = {b: sum(r.get('band') == b for r in judged) / len(judged) * 100 for b in ('outlier', 'normal', 'dud')}
+    return ('<div class="band-bar" aria-label="Judged posts by band">'
+            + ''.join(f'<i class="{b}" style="width:{w:.1f}%" title="{b}: {w:.0f}%"></i>' for b, w in share.items()) + '</div>')
+
+
+def channel_numbers(ctx) -> dict:
+    """The header numbers for one channel."""
+    posts, outliers, playbook = ctx['posts'], ctx['outliers'], ctx['playbook']
+    bands = outliers.get('posts') or {}
     metric = outliers.get('metric') or 'views'
-    m = lambda p, key: (p.get('metrics') or {}).get(key)
-    values = [m(p, metric) for p in posts if isinstance(m(p, metric), (int, float))]
+    values = [metric_of(p, metric) for p in posts if isinstance(metric_of(p, metric), (int, float))]
     median = statistics.median(values) if values else 0
     weekly = {}
     for p in posts:
-        if p.get('posted_at') and isinstance(m(p, metric), (int, float)):
-            try:
-                week = datetime.fromisoformat(p['posted_at'].replace('Z', '+00:00')).strftime('%G-%V')
-            except ValueError:
-                continue
-            weekly.setdefault(week, []).append(m(p, metric))
+        if p.get('posted_at') and isinstance(metric_of(p, metric), (int, float)):
+            moment = local_dt(p['posted_at'])
+            if moment:
+                weekly.setdefault(moment.strftime('%G-%V'), []).append(metric_of(p, metric))
     trend = [statistics.median(weekly[k]) for k in sorted(weekly)]
+    spark = ''
     if trend:
         lo, high = min(trend), max(trend)
         points = ' '.join(f'{i * 100 / max(1, len(trend)-1):.1f},{26 - (v-lo) * 23 / max(1, high-lo):.1f}' for i, v in enumerate(trend))
         spark = f'<svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" role="img" aria-label="Weekly median"><polyline points="{points}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>'
-    else:
-        spark = ''
-    interactions = [sum(m(p, k) or 0 for k in ('likes', 'comments', 'shares')) for p in posts]
+    interactions = [sum(metric_of(p, k) or 0 for k in ('likes', 'comments', 'shares')) for p in posts]
     judged = [r for r in bands.values() if r.get('band') in ('outlier', 'normal', 'dud')]
-    takeoff = sum(r.get('band') == 'outlier' for r in judged)
-    if len(judged) <= 100:
-        dots = '<div class="dots" aria-label="Judged posts">' + ''.join(f'<i class="{esc(r.get("band"))}"></i>' for r in judged) + '</div>'
-    else:
-        share = {b: sum(r.get('band') == b for r in judged) / len(judged) * 100 for b in ('outlier', 'normal', 'dud')}
-        dots = ('<div class="band-bar" aria-label="Judged posts by band">'
-                + ''.join(f'<i class="{b}" style="width:{w:.1f}%" title="{b}: {w:.0f}%"></i>' for b, w in share.items()) + '</div>')
+    tiers = ctx['tiers']
     tier_of = {str(pid): r.get('tier') for pid, r in bands.items()}
-    tiered = any(t in ('high', 'low') for t in tier_of.values())
     metric_plain = esc((playbook or {}).get("metric_plain") or metric)
     median_label, median_sub = f'Median {metric_plain}', ''
-    if tiered:
-        by_tier = {t: [m(p, metric) for p in posts if tier_of.get(str(p['post_id'])) == t and isinstance(m(p, metric), (int, float))]
+    if tiers:
+        by_tier = {t: [metric_of(p, metric) for p in posts if tier_of.get(str(p['post_id'])) == t and isinstance(metric_of(p, metric), (int, float))]
                    for t in ('high', 'low')}
         if by_tier['high']:
             median = statistics.median(by_tier['high'])
-            median_label = f'Median {metric_plain}, main feed'
+            median_label = f'Median {metric_plain}, {tiers["names"]["high"]}'
         if by_tier['low']:
-            median_sub = f'<span class="sub">Test reels: {statistics.median(by_tier["low"]):,.0f}</span>'
-    pool = [(pid, r) for pid, r in bands.items() if isinstance(r.get('multiple'), (int, float)) and (not tiered or r.get('tier') == 'high')]
+            median_sub = f'<span class="sub">{esc(tiers["names"]["low"][:1].upper() + tiers["names"]["low"][1:])}: {statistics.median(by_tier["low"]):,.0f}</span>'
+    # Test reels are judged against a tiny baseline, so their multiples run hot: on a reach split only the main feed competes.
+    pool = [(pid, r) for pid, r in bands.items() if isinstance(r.get('multiple'), (int, float))
+            and (tiers.get('kind') != 'reach' or r.get('tier') == 'high')]
     top_id, top_row = max(pool, key=lambda pair: pair[1]['multiple'], default=(None, {}))
-    thumb = visuals.get(top_id, {}).get('thumb')
-    top_url = next((p.get('url') for p in posts if str(p.get('post_id')) == str(top_id)), '')
-    best_thumb = f'<img class="thumb-best" src="{thumb}" alt="The best post">' if thumb else ''
-    if best_thumb and top_url:
-        best_thumb = f'<a class="thumb-link" href="{esc(top_url)}">{best_thumb}</a>'
-    tiles = [(len(posts), 'Posts analysed', (f'<span class="sub">{esc(window)}</span>' if window else '') + format_bar),
-             (f'{median:,.0f}', median_label, median_sub + spark),
-             (f'{sum(interactions):,}', 'Interactions', f'<span class="sub">Median per post: {statistics.median(interactions):,.0f}</span>' if interactions else ''),
-             (takeoff, 'Took off', f'<span class="sub">{takeoff / len(judged):.0%} of judged posts</span>{dots}' if judged else dots),
-             (f'{top_row["multiple"]:.1f}x' if top_row else 'n/a', 'Best main-feed post' if tiered else 'Best post', best_thumb)]
-    grad = patterns.get('graduation')
+    return {'metric': metric, 'median': median, 'median_label': median_label, 'median_sub': median_sub, 'spark': spark,
+            'interactions': interactions, 'judged': judged, 'takeoff': sum(r.get('band') == 'outlier' for r in judged),
+            'top_id': top_id, 'top_row': top_row, 'views': sum(metric_of(p, 'views') or 0 for p in posts),
+            'best_label': 'Best main-feed post' if tiers.get('kind') == 'reach' else 'Best post',
+            'median_short': 'median' + (f', {tiers["names"]["high"]}' if tiers and by_tier['high'] else '')}
+
+
+def best_thumb(ctx, top_id) -> str:
+    thumb = ctx['visuals'].get(top_id, {}).get('thumb')
+    url = next((p.get('url') for p in ctx['posts'] if str(p.get('post_id')) == str(top_id)), '')
+    image = f'<img class="thumb-best" src="{thumb}" alt="The best post">' if thumb else ''
+    return f'<a class="thumb-link" href="{esc(url)}">{image}</a>' if image and url else image
+
+
+def compact(n) -> str:
+    n = float(n or 0)
+    for size, unit in ((1e9, 'B'), (1e6, 'M'), (1e3, 'K')):
+        if abs(n) >= size:
+            return f'{n / size:.1f}'.rstrip('0').rstrip('.') + unit
+    return f'{n:,.0f}'
+
+
+def tile(value, label, extra='', count=None) -> str:
+    raw = str(value).replace(',', '')
+    attrs = count or ''
+    if count is None and raw.isdigit():
+        n = int(raw)
+        if n >= 1_000_000_000:
+            value, attrs = f'{n/1e9:.1f}B', f' data-count="{n/1e9:.1f}" data-decimals="1" data-suffix="B"'
+        elif n >= 1_000_000:
+            value, attrs = f'{n/1e6:.1f}M', f' data-count="{n/1e6:.1f}" data-decimals="1" data-suffix="M"'
+        else:
+            attrs = f' data-count="{n}"'
+    return f'<div class="stat"><b{attrs}>{esc(value)}</b><span>{label}</span>{extra}</div>'
+
+
+def cost_tile(usd) -> str:
+    mark = load_brand()['jev_mark']
+    credit = (f'<a class="jev-credit" href="https://typesafe.ai"><img src="{mark}" alt="Jev by TypeSafe"><span>Labelled by <strong>Jev</strong></span></a>'
+              if mark else '<span class="sub">Labelled by Jev</span>')
+    symbol, rate, is_usd = currency_symbol_rate(STYLE.get('currency'))
+    return (f'<div class="stat cost"><b id="ai-cost" data-cost="{usd:.6f}" data-rate="{rate}" data-symbol="{esc(symbol)}">'
+            f'{esc(symbol)}{usd * rate:.2f}</b><span>AI cost{"" if is_usd else f" (US${usd:.2f})"}</span>{credit}</div>')
+
+
+def single_tiles(ctx) -> list:
+    n = channel_numbers(ctx)
+    top_row, judged = n['top_row'], n['judged']
+    tiles = [tile(len(ctx['posts']), 'Posts analysed', (f'<span class="sub">{esc(ctx["window"])}</span>' if ctx['window'] else '') + format_bar(ctx['posts'])),
+             tile(f'{n["median"]:,.0f}', n['median_label'], n['median_sub'] + n['spark']),
+             tile(f'{sum(n["interactions"]):,}', 'Interactions', f'<span class="sub">Median per post: {statistics.median(n["interactions"]):,.0f}</span>' if n['interactions'] else ''),
+             tile(n['takeoff'], 'Took off', (f'<span class="sub">{n["takeoff"] / len(judged):.0%} of judged posts</span>' if judged else '') + judged_bar(judged)),
+             tile(f'{top_row["multiple"]:.1f}x' if top_row else 'n/a', n['best_label'], best_thumb(ctx, n['top_id']),
+                  f' data-count="{top_row["multiple"]:.1f}" data-decimals="1" data-suffix="x"' if top_row else '')]
+    grad = ctx['patterns'].get('graduation')
     if grad:
         promoted, ideas = grad.get('promoted') or 0, grad.get('ideas') or 0
-        tiles.append((f'{promoted} of {ideas}', 'Promoted tests', f'<div class="mini-bar"><i style="width:{promoted/max(1,ideas)*100:.1f}%"></i></div>'))
-    for value, label, extra in tiles:
-        raw = str(value)
-        numeric = raw.replace(',', '').isdigit()
-        counter = f' data-count="{raw.replace(",", "")}"' if numeric else ''
-        if numeric and int(raw.replace(',', '')) >= 1_000_000:
-            big = int(raw.replace(',', '')) / 1_000_000
-            value, counter = f'{big:.1f}M', f' data-count="{big:.1f}" data-decimals="1" data-suffix="M"'
-        if label.startswith('Best') and top_row:
-            counter = f' data-count="{top_row["multiple"]:.1f}" data-decimals="1" data-suffix="x"'
-        if label == 'Promoted tests':
-            counter = f' data-count="{promoted}" data-suffix=" of {ideas}"'
-        parts.append(f'<div class="stat"><b{counter}>{esc(value)}</b><span>{label}</span>{extra}</div>')
-    usd = float(labels.get("cost_usd") or 0)
-    symbol, rate, is_usd = currency_symbol_rate(STYLE.get('currency'))
-    parts.append(f'<div class="stat cost"><b id="ai-cost" data-cost="{usd:.6f}" data-rate="{rate}" data-symbol="{esc(symbol)}">'
-                 f'{esc(symbol)}{usd * rate:.2f}</b><span>AI cost{"" if is_usd else f" (US${usd:.2f})"}</span>'
-                 + (f'<a class="jev-credit" href="https://typesafe.ai"><img src="{brand["jev_mark"]}" alt="Jev by TypeSafe"><span>Labelled by <strong>Jev</strong></span></a>' if brand['jev_mark'] else '<span class="sub">Labelled by Jev</span>')
-                 + '</div>')
-    parts.append('</div></header><div class="menu-bar"><button type="button" class="menu-toggle" aria-expanded="false" aria-controls="report-menu">'
-                 '<span class="burger" aria-hidden="true"><i></i><i></i><i></i></span><span class="menu-label">Start here</span><span class="menu-hint">Menu</span></button></div>'
-                 '<div class="menu-backdrop" hidden></div>'
-                 '<nav class="tabs" id="report-menu" role="tablist" aria-label="Report sections">'
-                 '<div class="menu-head"><span>Sections</span><button type="button" class="menu-close" aria-label="Close menu">&times;</button></div>')
-    for i, (tab_id, label) in enumerate(tabs):
-        parts.append(f'<button type="button" role="tab" id="tab-{tab_id}" aria-controls="{tab_id}" '
-                     f'aria-selected="{"true" if i == 0 else "false"}">{label}</button>')
-    if brand['name']:
-        foot_logo = f'<img src="{brand["logo"]}" alt="">' if brand['logo'] else ''
-        parts.append(f'<a class="menu-foot" href="{esc(brand["url"])}">{foot_logo}{esc(brand["name"])}</a>' if brand['url']
-                     else f'<span class="menu-foot">{foot_logo}{esc(brand["name"])}</span>')
-    parts.append('</nav>')
-    shown = dict(tabs)
-    for (tab_id, _), content in zip(TABS, guided_panels(playbook, posts, features, outliers, agreement, patterns, labels, visuals, analyses, media)):
-        if tab_id not in shown:
-            continue
-        label = shown[tab_id]
-        parts.append(f'<section class="tab-panel" id="{tab_id}" role="tabpanel" aria-labelledby="tab-{tab_id}"><h2>{label}</h2>{content}</section>')
-    parts.append('<section class="tab-panel" id="data" role="tabpanel" aria-labelledby="tab-data"><h2>Raw data</h2><section><h3>Post performance over time</h3>')
+        tiles.append(tile(f'{promoted} of {ideas}', 'Promoted tests', f'<div class="mini-bar"><i style="width:{promoted/max(1,ideas)*100:.1f}%"></i></div>',
+                          f' data-count="{promoted}" data-suffix=" of {ideas}"'))
+    return tiles + [cost_tile(ctx['usd'])]
+
+
+def multi_tiles(ctxs) -> list:
+    """One stat strip for every channel together: totals, with each channel's share underneath."""
+    nums = [channel_numbers(c) for c in ctxs]
+    line = lambda c, text: f'<span class="sub ch-line">{channel_icon(c["platform"])}{text}</span>'
+    dates = sorted(d for c in ctxs for d in c['dates'])
+    total = sum(len(c['posts']) for c in ctxs)
+    split = ('<div class="channel-bar" aria-label="Posts by channel">'
+             + ''.join(f'<i class="ch-{esc(c["platform"])}" style="width:{len(c["posts"])/max(1,total)*100:.1f}%" title="{esc(CHANNEL_NAMES.get(c["platform"], c["platform"]))}: {len(c["posts"])}"></i>' for c in ctxs) + '</div>')
+    tiles = [tile(total, 'Posts analysed', (f'<span class="sub">{esc(window_text(dates[0], dates[-1]))}</span>' if dates else '')
+                  + ''.join(line(c, f'{len(c["posts"]):,} {esc(CHANNEL_NAMES.get(c["platform"], c["platform"]))}') for c in ctxs) + split)]
+    views = sum(n['views'] for n in nums)
+    if views:
+        tiles.append(tile(f'{views:,}', 'Views', ''.join(line(c, f'{compact(n["median"])} {n["median_short"]}') for c, n in zip(ctxs, nums))))
+    tiles.append(tile(f'{sum(sum(n["interactions"]) for n in nums):,}', 'Interactions',
+                      ''.join(line(c, compact(sum(n['interactions']))) for c, n in zip(ctxs, nums))))
+    judged = [r for n in nums for r in n['judged']]
+    takeoff = sum(n['takeoff'] for n in nums)
+    tiles.append(tile(takeoff, 'Took off', (f'<span class="sub">{takeoff / len(judged):.0%} of judged posts</span>' if judged else '') + judged_bar(judged)))
+    best = max(((c, n) for c, n in zip(ctxs, nums) if n['top_row']), key=lambda pair: pair[1]['top_row']['multiple'], default=None)
+    if best:
+        c, n = best
+        tiles.append(tile(f'{n["top_row"]["multiple"]:.1f}x', f'Best post, {esc(CHANNEL_NAMES.get(c["platform"], c["platform"]))}', best_thumb(c, n['top_id']),
+                          f' data-count="{n["top_row"]["multiple"]:.1f}" data-decimals="1" data-suffix="x"'))
+    return tiles + [cost_tile(sum(c['usd'] for c in ctxs))]
+
+
+def raw_data_html(posts_data, posts, features, outliers, labels, patterns, agreement) -> str:
+    parts = []
+    parts.append('<h2>Raw data</h2><section><h3>Post performance over time</h3>')
     parts.append(chart(posts, outliers.get('posts', {}), outliers.get('hi', 1.5)))
     tiers = outliers.get('tiers')
     if tiers:
-        parts.append(f'<p>Two reach groups split at {esc(tiers.get("cut"))}: low group {esc(tiers.get("low", {}).get("n"))} posts, '
-                     f'high group {esc(tiers.get("high", {}).get("n"))} posts.</p>')
+        info = tier_info(outliers, (posts_data.get('platform') or '').lower())
+        how = f'split at {tiers.get("cut"):,.0f} {esc(outliers.get("metric"))}' if tiers.get('cut') else 'split by format'
+        parts.append(f'<p>Judged in two groups, {how}: {esc(tiers.get("low", {}).get("n"))} {esc(info["names"]["low"])} and '
+                     f'{esc(tiers.get("high", {}).get("n"))} {esc(info["names"]["high"])}. Each post is compared with its own group.</p>')
     grad = patterns.get('graduation')
     if grad:
         parts.append(f'<h3>Posts that moved up</h3><p>{esc(grad.get("promoted"))} of {esc(grad.get("ideas"))} '
@@ -839,51 +906,143 @@ def render(work: Path, playbook: dict | None, title: str, prepared=None) -> str:
     parts.append(f'<p>Jev model: {esc(labels.get("model"))}. Calls: {esc(labels.get("calls"))}. Cost: {esc(money(labels.get("cost_usd")))}.</p>')
     if agreement:
         parts.append(f'<p>Blind agreement: {esc(agreement.get("n"))} posts. ' + ', '.join(f'{esc(key)} {fmt(value * 100)}%' for key, value in agreement.get('by_question', {}).items()) + '</p>')
-    parts.append('</section></section>')
+    parts.append('</section>')
+    return ''.join(parts)
+
+
+def channel_sections(ctx, tabs, multi) -> str:
+    ch = ctx['platform'] if multi else ''
+    suffix = f'-{ch}' if multi else ''
+    owner = f' data-channel="{esc(ch)}"' if multi else ''
+    tag = (f'<p class="eyebrow channel-tag">{channel_icon(ch)}{esc(CHANNEL_NAMES.get(ch, ch))}</p>' if multi else '')
+    contents = dict(zip([tab_id for tab_id, _ in TABS], guided_panels(
+        ctx['playbook'], ctx['posts'], ctx['features'], ctx['outliers'], ctx['agreement'], ctx['patterns'],
+        ctx['labels'], ctx['visuals'], ctx['analyses'], ctx['media'])))
+    out = []
+    for tab_id, label in tabs:
+        if tab_id == 'data':
+            body = raw_data_html(ctx['posts_data'], ctx['posts'], ctx['features'], ctx['outliers'], ctx['labels'],
+                                 ctx['patterns'], ctx['agreement'])
+        else:
+            body = f'<h2>{label}</h2>{contents.get(tab_id, "")}'
+        cost = f' data-cost="{ctx["usd"]:.6f}"' if tab_id == 'start' else ''
+        out.append(f'<section class="tab-panel" id="{tab_id}{suffix}" data-tab="{tab_id}"{owner}{cost} role="tabpanel" '
+                   f'aria-labelledby="tab-{tab_id}">{tag}{body}</section>')
+    return ''.join(out)
+
+
+def render(work: Path, playbook: dict | None, title: str, prepared=None, also=()) -> str:
+    """One channel, or several (`also`: more (work, playbook) pairs) behind a channel switch."""
+    settings = load_settings()
+    STYLE.update(spelling=settings['spelling'], currency=settings['currency'], timezone=settings.get('timezone'))
+    ctxs = [load_channel(work, playbook)] + [load_channel(w, pb) for w, pb in also]
+    multi = len(ctxs) > 1
+    first = ctxs[0]
+    brand = load_brand()
+    tabs = tabs_for(audience_of(first['playbook']))
+    when = f'Prepared {esc(prepared_date(prepared or (first["playbook"] or {}).get("prepared")))}'
+    by = (f' by <a href="{esc(brand["url"])}">{esc(brand["name"])}</a>' if brand['url'] else f' by {esc(brand["name"])}') if brand['name'] else ''
+
+    def who(c, i=0):
+        only = f' data-channel-only="{esc(c["platform"])}"' + (' hidden' if i else '') if multi else ''
+        return (f'<a class="who" href="{esc(c["profile"])}"{only}>{esc(c["handle"])}</a>' if c['profile']
+                else f'<span class="who"{only}>{esc(c["handle"])}</span>')
+
+    def switch(c, i):
+        name = esc(CHANNEL_NAMES.get(c['platform'], c['platform']))
+        return (f'<button type="button" class="channel-switch" data-channel="{esc(c["platform"])}" '
+                f'aria-pressed="{"true" if i == 0 else "false"}" title="{name}">{channel_icon(c["platform"])}<span>{name}</span></button>')
+
+    if multi:
+        switches = ''.join(switch(c, i) for i, c in enumerate(ctxs))
+        lead = f'<span class="channel-switches" role="group" aria-label="Channels">{switches}</span>' + ''.join(who(c, i) for i, c in enumerate(ctxs))
+    else:
+        name = esc(CHANNEL_NAMES.get(first['platform'], first['platform']))
+        lead = f'<span class="channel-icon" title="{name}" aria-label="{name}">{channel_icon(first["platform"])}</span>{who(first)}'
+    parts = ['<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">',
+             f'<title>{esc(title)}</title>', FONT, CSS, '<div class="wrap">',
+             f'<header><p class="eyebrow">Creator teardown</p><h1>{esc(title)}</h1><p class="byline">{lead}<span class="sep">|</span>{when}{by}</p><div class="grid stats">']
+    parts.extend(multi_tiles(ctxs) if multi else single_tiles(first))
+    parts.append('</div></header><div class="menu-bar"><button type="button" class="menu-toggle" aria-expanded="false" aria-controls="report-menu">'
+                 '<span class="burger" aria-hidden="true"><i></i><i></i><i></i></span><span class="menu-label">Start here</span><span class="menu-hint">Menu</span></button></div>'
+                 '<div class="menu-backdrop" hidden></div>'
+                 '<nav class="tabs" id="report-menu" role="tablist" aria-label="Report sections">'
+                 '<div class="menu-head"><span>Sections</span><button type="button" class="menu-close" aria-label="Close menu">&times;</button></div>')
+    if multi:
+        parts.append('<div class="menu-channels" role="group" aria-label="Channels">' + ''.join(switch(c, i) for i, c in enumerate(ctxs)) + '</div>')
+    suffix = f'-{first["platform"]}' if multi else ''
+    for i, (tab_id, label) in enumerate(tabs):
+        parts.append(f'<button type="button" role="tab" id="tab-{tab_id}" data-tab="{tab_id}" aria-controls="{tab_id}{suffix}" '
+                     f'aria-selected="{"true" if i == 0 else "false"}">{label}</button>')
+    if brand['name']:
+        foot_logo = f'<img src="{brand["logo"]}" alt="">' if brand['logo'] else ''
+        parts.append(f'<a class="menu-foot" href="{esc(brand["url"])}">{foot_logo}{esc(brand["name"])}</a>' if brand['url']
+                     else f'<span class="menu-foot">{foot_logo}{esc(brand["name"])}</span>')
+    parts.append('</nav>')
+    for c in ctxs:
+        parts.append(channel_sections(c, tabs, multi))
     logo = f'<img src="{brand["logo"]}" alt="">' if brand['logo'] else ''
     name = brand['name'] or 'Creator teardown'
     mark = f'<a class="brand" href="{esc(brand["url"])}">{logo}{esc(name)}</a>' if brand['url'] else f'<span class="brand">{logo}{esc(name)}</span>'
-    parts.append(f'<footer class="site-footer">{mark}<p>{when}. Every number comes from {esc(handle)}\'s public posts. Post labels by Jev from TypeSafe.</p></footer></div>')
+    source = (f'the creator\'s public posts on {" and ".join(esc(CHANNEL_NAMES.get(c["platform"], c["platform"])) for c in ctxs)}' if multi
+              else f'{esc(first["handle"])}\'s public posts')
+    parts.append(f'<footer class="site-footer">{mark}<p>{when}. Every number comes from {source}. Post labels by Jev from TypeSafe.</p></footer></div>')
     parts.append('''<script>(function(){
-const tabs=[...document.querySelectorAll('.tabs [role="tab"]')],panels=[...document.querySelectorAll('.tab-panel')];
-function syncLabel(){const t=document.querySelector('.tabs [aria-selected="true"]'),l=document.querySelector('.menu-label');if(t&&l)l.textContent=t.textContent}
-function open(id,updateHash){if(!panels.some(p=>p.id===id))id='start';for(const p of panels)p.hidden=p.id!==id;for(const t of tabs)t.setAttribute('aria-selected',String(t.getAttribute('aria-controls')===id));if(updateHash){try{history.replaceState(null,'','#'+id)}catch(e){}}syncLabel()}
-for(const t of tabs)t.addEventListener('click',()=>open(t.getAttribute('aria-controls'),true));
-function followHash(){const id=decodeURIComponent(location.hash.slice(1));if(id==='sure'||id==='start'||id==='wins'||id==='build'||id==='best'||id==='yours'||id==='data')open(id,false);else if(id.startsWith('best-post-')){open('best',false);document.getElementById(id)?.scrollIntoView()}else if(id.startsWith('data-post-')){open('data',false);const card=document.getElementById(id);if(card){card.parentElement.open=true;card.scrollIntoView()}}else open('start',false)}
+const costEl=document.getElementById('ai-cost'),SYM=costEl?.dataset.symbol||'US$',RATE=Number(costEl?.dataset.rate||1);
+const tabs=[...document.querySelectorAll('.tabs [role="tab"]')],panels=[...document.querySelectorAll('.tab-panel')],switches=[...document.querySelectorAll('.channel-switch')];
+let channel=(switches.find(s=>s.getAttribute('aria-pressed')==='true')||switches[0])?.dataset.channel||'',tab='start';
+const panelFor=(t,c)=>panels.find(p=>p.dataset.tab===t&&(p.dataset.channel||'')===(c||''));
+function syncLabel(){const t=document.querySelector('.tabs [aria-selected="true"]'),l=document.querySelector('.menu-label'),s=switches.find(x=>x.dataset.channel===channel);if(t&&l)l.textContent=(s?s.textContent.trim()+' · ':'')+t.textContent}
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,played=new Set();let timer,marks=[],counter=null,usd=0;
+function setStep(n){for(let i=0;i<marks.length;i++)marks[i].classList.toggle('pending',i>=n);if(counter)counter.textContent='Decoding '+n+' / '+marks.length+' · '+SYM+(usd*n/Math.max(1,marks.length)*RATE).toFixed(2)+' spent'}
+function finish(){clearInterval(timer);setStep(marks.length)}
+function play(){finish();const p=panelFor('start',channel);marks=p?[...p.querySelectorAll('.plot-post')]:[];counter=p?p.querySelector('.decode-count'):null;usd=Number(p?.dataset.cost||0);if(reduced||!marks.length){finish();return}const start=performance.now();setStep(0);timer=setInterval(()=>{const n=Math.min(marks.length,Math.round((performance.now()-start)/6000*marks.length));setStep(n);if(n>=marks.length)clearInterval(timer)},40)}
+function decodeOnce(){if(!played.has(channel)){played.add(channel);play()}}
+for(const b of document.querySelectorAll('.decode-stop'))b.addEventListener('click',finish);
+for(const b of document.querySelectorAll('.decode-replay'))b.addEventListener('click',play);
+function show(updateHash){if(!panelFor(tab,channel))tab='start';for(const p of panels)p.hidden=!(p.dataset.tab===tab&&(p.dataset.channel||'')===channel);for(const t of tabs){t.setAttribute('aria-selected',String(t.dataset.tab===tab));const p=panelFor(t.dataset.tab,channel);if(p)t.setAttribute('aria-controls',p.id)}for(const s of switches)s.setAttribute('aria-pressed',String(s.dataset.channel===channel));for(const h of document.querySelectorAll('[data-channel-only]'))h.hidden=h.dataset.channelOnly!==channel;if(updateHash){try{history.replaceState(null,'','#'+panelFor(tab,channel).id)}catch(e){}}syncLabel();if(tab==='start')decodeOnce()}
+function open(t,updateHash){tab=t;show(updateHash)}
+for(const t of tabs)t.addEventListener('click',()=>open(t.dataset.tab,true));
+for(const s of switches)s.addEventListener('click',()=>{channel=s.dataset.channel;show(true)});
+function followHash(){const id=decodeURIComponent(location.hash.slice(1)),el=id?document.getElementById(id):null,panel=el?(el.classList.contains('tab-panel')?el:el.closest('.tab-panel')):null;if(panel){channel=panel.dataset.channel||'';tab=panel.dataset.tab;show(false);if(el!==panel){const box=el.closest('details');if(box)box.open=true;el.scrollIntoView()}}else{if(id&&panelFor(id,channel))tab=id;show(false)}}
 window.addEventListener('hashchange',followHash);followHash();
 const menuToggle=document.querySelector('.menu-toggle'),menuBackdrop=document.querySelector('.menu-backdrop'),menuClose=document.querySelector('.menu-close');
 function setMenu(on){document.body.classList.toggle('menu-open',on);if(menuBackdrop)menuBackdrop.hidden=!on;menuToggle?.setAttribute('aria-expanded',String(on));if(on)setTimeout(()=>document.querySelector('.tabs [aria-selected="true"]')?.focus(),50)}
 menuToggle?.addEventListener('click',()=>setMenu(!document.body.classList.contains('menu-open')));menuBackdrop?.addEventListener('click',()=>setMenu(false));menuClose?.addEventListener('click',()=>{setMenu(false);menuToggle?.focus()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('menu-open')){setMenu(false);menuToggle?.focus()}});
 for(const t of tabs)t.addEventListener('click',()=>{if(!document.body.classList.contains('menu-open'))return;setMenu(false);const p=document.getElementById(t.getAttribute('aria-controls')),bar=document.querySelector('.menu-bar');if(p)window.scrollTo(0,p.getBoundingClientRect().top+scrollY-(bar?.offsetHeight||0)-8)});
+for(const s of document.querySelectorAll('.menu-channels .channel-switch'))s.addEventListener('click',()=>{setMenu(false);const p=panelFor(tab,channel),bar=document.querySelector('.menu-bar');if(p)window.scrollTo(0,p.getBoundingClientRect().top+scrollY-(bar?.offsetHeight||0)-8)});
 for(const link of document.querySelectorAll('.one-picture a'))link.addEventListener('click',()=>{setTimeout(followHash,0)});
 for(const tab of document.querySelectorAll('.kind-tabs button'))tab.addEventListener('click',()=>{const panel=tab.closest('.tab-panel');for(const button of panel.querySelectorAll('.kind-tabs button'))button.setAttribute('aria-selected',String(button===tab));for(const list of panel.querySelectorAll('[data-kind-list]'))list.hidden=list.dataset.kindList!==tab.dataset.kind;for(const mark of panel.querySelectorAll('.one-picture .plot-post'))mark.classList.remove('dim')});
 for(const row of document.querySelectorAll('.kind-row'))row.addEventListener('click',()=>{const panel=row.closest('.tab-panel'),ids=new Set(row.dataset.posts.split('|'));for(const peer of panel.querySelectorAll('.kind-row'))peer.classList.toggle('active',peer===row);for(const mark of panel.querySelectorAll('.one-picture .plot-post'))mark.classList.toggle('dim',!ids.has(mark.dataset.post))});
 for(const button of document.querySelectorAll('.copy-button'))button.addEventListener('click',async()=>{const block=button.closest('.post-card').querySelector('.draft-text'),value=block?.innerText||'';try{await navigator.clipboard.writeText(value);button.textContent='Copied'}catch(e){const selection=window.getSelection(),range=document.createRange();range.selectNodeContents(block);selection.removeAllRanges();selection.addRange(range);button.textContent='Select and copy'}});
-const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,marks=[...document.querySelectorAll('#start .plot-post')],cost=document.getElementById('ai-cost'),counter=document.getElementById('decode-count'),stop=document.getElementById('decode-stop'),replay=document.getElementById('decode-replay');let timer;
-function setStep(n){for(let i=0;i<marks.length;i++)marks[i].classList.toggle('pending',i>=n);const usd=Number(cost?.dataset.cost||0)*n/Math.max(1,marks.length);counter.textContent='Decoding '+n+' / '+marks.length+' · '+(cost?.dataset.symbol||'US$')+(usd*Number(cost?.dataset.rate||1)).toFixed(2)+' spent'}
-function finish(){clearInterval(timer);setStep(marks.length)}
-function play(){clearInterval(timer);if(reduced){finish();return}const start=performance.now();setStep(0);timer=setInterval(()=>{const n=Math.min(marks.length,Math.round((performance.now()-start)/6000*marks.length));setStep(n);if(n>=marks.length)clearInterval(timer)},40)}
-stop?.addEventListener('click',finish);replay?.addEventListener('click',play);if(marks.length&&!reduced)play();
 if(!reduced){document.querySelectorAll('.stat').forEach((tile,i)=>{tile.style.animation='tile-rise .3s ease both';tile.style.animationDelay=(i*55)+'ms'});for(const number of document.querySelectorAll('.stat b[data-count]')){const target=Number(number.dataset.count),decimals=Number(number.dataset.decimals||0),suffix=number.dataset.suffix||'',start=performance.now();function tick(now){const fraction=Math.min(1,(now-start)/650);number.textContent=(target*fraction).toLocaleString(undefined,{minimumFractionDigits:decimals,maximumFractionDigits:decimals})+suffix;if(fraction<1)requestAnimationFrame(tick)}requestAnimationFrame(tick)}}
 })()</script>''')
     page = ''.join(parts)
-    if len(page.encode('utf-8')) > 9_000_000:
-        for media in reversed(list(visuals.values())):
-            for uri in reversed(media.get('full', [])):
-                page = page.replace(f'<img src="{uri}" alt="Post media">', '')
-                if len(page.encode('utf-8')) <= 9_000_000:
-                    return page
+    limit = 15_000_000  # the artifact cap is 16MB: drop the largest post media first if a page runs over
+    if len(page.encode('utf-8')) > limit:
+        for ctx in reversed(ctxs):
+            for media in reversed(list(ctx['visuals'].values())):
+                for uri in reversed(media.get('full', [])):
+                    page = page.replace(f'<img src="{uri}" alt="Post media">', '')
+                    if len(page.encode('utf-8')) <= limit:
+                        return page
     return page
 
 
-def run(work: Path, *, playbook=None, title='Creator teardown', out=None, prepared=None) -> str:
+def run(work: Path, *, playbook=None, title='Creator teardown', out=None, prepared=None, also=()) -> str:
+    """`also`: more run folders (each with .work/ and playbook.json) shown as extra channels."""
     work = Path(work)
     if isinstance(playbook, (str, Path)):
         playbook = read_json(playbook)
     if playbook is None and (work / 'playbook.json').exists():
         playbook = read_json(work / 'playbook.json')
-    page = render(work, playbook, title, prepared)
+    channels = []
+    for folder in also:
+        folder = Path(folder)
+        extra = folder / 'playbook.json'
+        channels.append((folder / '.work', read_json(extra) if extra.exists() else None))
+    page = render(work, playbook, title, prepared, channels)
     target = Path(out) if out else work / 'report.html'
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(page, encoding='utf-8')
@@ -897,9 +1056,11 @@ def main():
     parser.add_argument('--title', default='Creator teardown')
     parser.add_argument('--out', type=Path)
     parser.add_argument('--prepared', help='date shown as Prepared (YYYY-MM-DD); default playbook.prepared, else today')
+    parser.add_argument('--also', type=Path, action='append', default=[],
+                        help='another run folder for the same creator on a second channel (repeatable)')
     args = parser.parse_args()
     try:
-        run(args.work, playbook=args.playbook, title=args.title, out=args.out, prepared=args.prepared)
+        run(args.work, playbook=args.playbook, title=args.title, out=args.out, prepared=args.prepared, also=args.also)
     except ConfigError as exc:
         parser.exit(2, f'ERROR: {exc}\n')
     print(f"Report written to {args.out or args.work / 'report.html'}")

@@ -314,7 +314,8 @@ def run(work: Path, *, min_n=5) -> dict:
                            'metric': outliers.get('metric'), 'baseline': outliers.get('baseline')},
                'lifts': lifts, 'combos': combos, 'repeats': repeats, 'tempo': tempo_analysis(rows),
                'tiers': outliers.get('tiers'),
-               'graduation': graduation(source, features, outliers, labels, min_n, None) if outliers.get('tiers') else None,
+               'graduation': graduation(source, features, outliers, labels, min_n, None)
+               if (outliers.get('tiers') or {}).get('kind', 'reach') == 'reach' and outliers.get('tiers') else None,
                'sentences': sentence_analysis(rows, min_n),
                'top_outliers': [top_row(r) for r in sorted((r for r in rows if r['band'] == 'outlier'),
                                                            key=lambda r: r['multiple'] or 0, reverse=True)[:10]],

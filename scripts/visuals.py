@@ -41,9 +41,11 @@ def video_frames(video_url: str, out_dir: Path, count: int = 4) -> list[str]:
     """Download the video to a temp folder, keep `count` evenly spaced frames, drop the video."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        if '.m3u8' in video_url or '/playlist/' in video_url:
-            subprocess.run(['yt-dlp', '-q', '-f', 'b[height<=720]/b', '-o', str(tmp / 'v.%(ext)s'), video_url],
-                           check=True, timeout=600)
+        if '.m3u8' in video_url or '/playlist/' in video_url or 'youtube.com/' in video_url:
+            # YouTube: the first 4 minutes is enough for frames from the opening, and keeps long videos small.
+            section = ['--download-sections', '*0-240'] if 'youtube.com/' in video_url else []
+            subprocess.run(['yt-dlp', '-q', '--no-warnings', '--no-playlist', '-f', 'b/bv*+ba', '-S', 'res:720,vcodec:avc', *section,
+                            '-o', str(tmp / 'v.%(ext)s'), video_url], check=True, timeout=600)
             video = next(tmp.glob('v.*'))
         else:
             video = fetch(video_url, tmp / 'v.mp4', timeout=120)
@@ -96,9 +98,16 @@ def tiktok_media(raw: list[dict]) -> dict[str, dict]:
 def youtube_media(raw: list[dict]) -> dict[str, dict]:
     out = {}
     for i in raw:
-        thumbs = [t.get('url') for t in i.get('thumbnails') or [] if t.get('url')]
-        out[str(i.get('id'))] = {'thumb': thumbs[-1] if thumbs else f"https://i.ytimg.com/vi/{i.get('id')}/hqdefault.jpg",
-                                 'video': None, 'images': []}
+        vid = str(i.get('id'))
+        if isinstance(i.get('snippet'), dict):  # YouTube Data API item
+            thumbs = i['snippet'].get('thumbnails') or {}
+            thumb = next((thumbs[k]['url'] for k in ('maxres', 'standard', 'high', 'medium') if (thumbs.get(k) or {}).get('url')), None)
+        else:
+            urls = [t.get('url') for t in i.get('thumbnails') or [] if t.get('url')]
+            thumb = urls[-1] if urls else None
+        thumb = thumb or f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
+        # The thumbnail is half of a YouTube video's packaging, so it leads the images.
+        out[vid] = {'thumb': thumb, 'video': f'https://www.youtube.com/watch?v={vid}', 'images': [thumb]}
     return out
 
 

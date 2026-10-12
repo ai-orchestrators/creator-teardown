@@ -26,7 +26,7 @@ DECISIONS_DIR = SKILL_DIR / "decisions"
 VIDEO_FORMATS = {"video", "reel", "short"}
 PLATFORMS = ("instagram", "tiktok", "youtube", "linkedin")
 SPELLINGS = ("as-is", "au", "uk")
-KEY_NAMES = ("APIFY_TOKEN", "TYPESAFE_API_KEY", "OPENROUTER_API_KEY")
+KEY_NAMES = ("APIFY_TOKEN", "TYPESAFE_API_KEY", "OPENROUTER_API_KEY", "YOUTUBE_API_KEY")
 
 DEFAULT_SETTINGS = {
     "platforms": list(PLATFORMS),

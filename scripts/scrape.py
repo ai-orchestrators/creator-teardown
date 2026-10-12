@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Pull a creator's recent posts into one normalised posts.json.
 
-Platforms: instagram, tiktok, linkedin (Apify public actors, APIFY_TOKEN), youtube (yt-dlp, free).
+Platforms: instagram, tiktok, linkedin (Apify public actors, APIFY_TOKEN), youtube (the YouTube Data API
+with YOUTUBE_API_KEY, free quota; without a key, yt-dlp lists the Shorts tab, without dates).
 Every Apify run is capped twice: --limit (maxItems) and --max-cost-usd (maxTotalChargeUsd), so a
 run can never spend past the cap you set. Nothing logs in as you and no cookie is ever used.
 
@@ -15,7 +16,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -68,9 +71,54 @@ def run_apify(platform: str, handle: str, limit: int, max_cost: float) -> list[d
     return items
 
 
+def youtube_handle(handle: str) -> str:
+    """'@SomeChannel', 'SomeChannel' or a channel URL in, 'SomeChannel' out."""
+    match = re.search(r'youtube\.com/@([^/?#]+)', handle)
+    return (match.group(1) if match else handle).lstrip('@').strip('/')
+
+
+def youtube_api_request(path: str, key: str, **query) -> urllib.request.Request:
+    """The key goes in a header, never in the URL, so it cannot leak into a log or an error."""
+    return urllib.request.Request(f"https://www.googleapis.com/youtube/v3/{path}?{urllib.parse.urlencode(query)}",
+                                  headers={"X-goog-api-key": key})
+
+
+def run_youtube_api(handle: str, limit: int) -> list[dict]:
+    """The YouTube Data API (free quota): the channel's last `limit` uploads, Shorts and long videos,
+    with publish time, duration, views, likes, comments, title, description and thumbnails."""
+    load_env()
+    key = os.environ.get("YOUTUBE_API_KEY")
+    if not key:
+        raise RuntimeError("YOUTUBE_API_KEY is not set")
+
+    def api(path: str, **query) -> dict:
+        try:
+            with urllib.request.urlopen(youtube_api_request(path, key, **query), timeout=30) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as exc:
+            raise RuntimeError(f"YouTube Data API HTTP {exc.code}: {exc.read().decode(errors='replace')[:200].replace(key, '[redacted]')}") from None
+
+    channels = api("channels", part="contentDetails", forHandle="@" + youtube_handle(handle)).get("items") or []
+    if not channels:
+        raise RuntimeError(f"no YouTube channel for @{youtube_handle(handle)}")
+    uploads = channels[0]["contentDetails"]["relatedPlaylists"]["uploads"]
+    ids, page = [], ""
+    while len(ids) < limit:
+        data = api("playlistItems", part="contentDetails", playlistId=uploads, maxResults=50, **({"pageToken": page} if page else {}))
+        ids += [item["contentDetails"]["videoId"] for item in data.get("items", [])]
+        page = data.get("nextPageToken") or ""
+        if not page:
+            break
+    items = []
+    for start in range(0, min(limit, len(ids)), 50):
+        batch = ids[start:min(limit, start + 50)]
+        items += api("videos", part="snippet,contentDetails,statistics", id=",".join(batch)).get("items", [])
+    return items
+
+
 def run_ytdlp(handle: str, limit: int) -> list[dict]:
     """Flat listing of a channel's Shorts tab. Newest first; no upload dates in flat mode."""
-    channel = handle if handle.startswith("http") else f"https://www.youtube.com/@{handle.lstrip('@')}/shorts"
+    channel = f"https://www.youtube.com/@{youtube_handle(handle)}/shorts"
     try:
         completed = subprocess.run(
             ["yt-dlp", "--flat-playlist", "-J", "--playlist-end", str(limit), channel],
@@ -85,11 +133,17 @@ def run_ytdlp(handle: str, limit: int) -> list[dict]:
 def run(work: Path, *, platform: str, handle: str, limit: int = 200,
         max_cost_usd: float = 5.0, raw: Path | None = None, from_raw: Path | None = None) -> dict:
     handle = handle.strip().lstrip("@")
+    if platform == "youtube":
+        handle = youtube_handle(handle)
     if from_raw:
         raw_items = json.loads(Path(from_raw).read_text(encoding="utf-8"))
         raw = None
     elif platform == "youtube":
-        raw_items = run_ytdlp(handle, limit)
+        try:
+            raw_items = run_youtube_api(handle, limit)
+        except Exception as exc:  # no key or an API error: the Shorts listing still works, without dates
+            print(f"YouTube Data API said no ({exc}). Falling back to the yt-dlp Shorts listing.", file=sys.stderr)
+            raw_items = run_ytdlp(handle, limit)
     else:
         raw_items = run_apify(platform, handle, limit, max_cost_usd)
     if raw:

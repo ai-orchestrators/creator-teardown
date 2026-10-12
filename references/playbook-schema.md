@@ -96,5 +96,5 @@ Notes:
 - `agreement` is copied from `.work/agreement.json`.
 - `audience` is copied from `<run>/audience.json`. `creator` mode drops the Your versions tab, renames
   "Their best posts" to "Your best posts", shows `copy_this` / `skip_this` as "Keep doing this" and
-  "Do less of this", and adds "for <name>" to the byline. `client` mode adds "for <name>" too.
+  "Do less of this". The byline is the same for every mode.
 - `prepared` pins the "Prepared" date (YYYY-MM-DD). Without it the report uses today.

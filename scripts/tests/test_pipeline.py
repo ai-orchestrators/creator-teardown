@@ -143,6 +143,36 @@ class CaptionSentences(unittest.TestCase):
                          ["We grew 1.2x in the U.S. last year.", "Dr. Lee agreed."])
 
 
+class YouTube(unittest.TestCase):
+    def test_api_item_normalises_short_and_long(self):
+        base = {'snippet': {'title': 'How I price', 'publishedAt': '2026-10-11T02:00:00Z', 'description': 'd',
+                            'thumbnails': {'high': {'url': 'https://example.com/h.jpg'}}},
+                'statistics': {'viewCount': '1200', 'likeCount': '30', 'commentCount': '4'}}
+        short = normalise.youtube(dict(base, id='s1', contentDetails={'duration': 'PT58S'}), 'x')
+        long = normalise.youtube(dict(base, id='l1', contentDetails={'duration': 'PT37M14S'}), 'x')
+        self.assertEqual((short['format'], short['url']), ('short', 'https://www.youtube.com/shorts/s1'))
+        self.assertEqual((long['format'], long['duration_s']), ('video', 2234.0))
+        self.assertEqual(long['metrics']['likes'], 30)
+        self.assertEqual(long['thumbnail_url'], 'https://example.com/h.jpg')
+
+    def test_captions_become_timed_word_tokens(self):
+        import sys, types
+        seg = lambda start, duration, text: SimpleNamespace(start=start, duration=duration, text=text)
+        fake = types.ModuleType('youtube_transcript_api')
+        fake.YouTubeTranscriptApi = lambda: SimpleNamespace(fetch=lambda vid, languages: [
+            seg(0.0, 1.0, "Here's the deal."), seg(1.0, 1.0, '[Music]'), seg(300.0, 1.0, 'Too late.')])
+        sys.modules['youtube_transcript_api'] = fake
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                out = Path(d) / 't.json'
+                media.youtube_captions('v1', out, max_start=240)
+                tokens = read(out)['captions']
+        finally:
+            del sys.modules['youtube_transcript_api']
+        self.assertEqual([t['text'] for t in tokens], [" Here's", ' the', ' deal.'])
+        self.assertEqual([s['text'] for s in features.sentences_from_captions(tokens)], ["Here's the deal."])
+
+
 class Positions(unittest.TestCase):
     def test_text_positions(self):
         sents = [{"text": t} for t in ["a1 b.", "c2 d.", "e3 f.", "g4 h.", "i5 j."]]
@@ -685,15 +715,15 @@ class ReportV2(unittest.TestCase):
             self.assertEqual(positions, sorted(positions))
             self.assertEqual(page.count('role="tabpanel"'), 7)
             self.assertIn('<section class="tab-panel" id="start"', page)
-            self.assertIn('id="tab-start" aria-controls="start" aria-selected="true"', page)
-            self.assertLess(page.index('id="start" role="tabpanel"'), page.index('id="wins" role="tabpanel"'))
+            self.assertIn('id="tab-start" data-tab="start" aria-controls="start" aria-selected="true"', page)
+            self.assertLess(page.index('id="start" data-tab="start"'), page.index('id="wins" data-tab="wins"'))
 
     def test_finding_shows_numbers_and_chart(self):
         with tempfile.TemporaryDirectory() as d:
             page = self.page(d, {"findings": [{"title": "The list wins", "plain": "People save it.",
                                                 "number_line": "3 of 4 took off", "numbers": {"hits": 3, "n": 4, "base": 0.25},
                                                 "confidence": "strong"}]})
-            wins = page.split('id="wins" role="tabpanel"', 1)[1].split('id="build" role="tabpanel"', 1)[0]
+            wins = page.split('id="wins" data-tab="wins"', 1)[1].split('id="build" data-tab="build"', 1)[0]
             self.assertIn("The list wins", wins)
             self.assertIn("3 of 4 took off", wins)
             self.assertIn("<svg", wins)
@@ -701,7 +731,7 @@ class ReportV2(unittest.TestCase):
     def test_best_post_uses_referenced_opening_line(self):
         with tempfile.TemporaryDirectory() as d:
             page = self.page(d, {"best_posts": [{"post_id": "p0", "why": "It worked.", "borrow": "Try it."}]})
-            best = page.split('id="best" role="tabpanel"', 1)[1].split('id="yours" role="tabpanel"', 1)[0]
+            best = page.split('id="best" data-tab="best"', 1)[1].split('id="yours" data-tab="yours"', 1)[0]
             work = Path(d)
             expected = read(work / "features.json")["p0"]["segments"]["hook_text"]
             self.assertIn(expected, best)
@@ -717,7 +747,7 @@ class ReportV2(unittest.TestCase):
     def test_raw_data_keeps_chart_and_every_post(self):
         with tempfile.TemporaryDirectory() as d:
             page = self.page(d, None)
-            raw = page.split('id="data" role="tabpanel"', 1)[1]
+            raw = page.split('id="data" data-tab="data"', 1)[1]
             self.assertIn("<svg", raw)
             self.assertEqual(raw.count("<details>"), len(read(Path(d) / "posts.json")["posts"]))
 
@@ -767,14 +797,35 @@ class ReportV3(unittest.TestCase):
             self.assertIn('Copy this', mine)
             client = report.render(work, dict(rebuild, audience={'mode': 'client', 'name': 'Client Co'}), 'Creator teardown')
             self.assertIn('id="tab-yours"', client)
-            self.assertIn(' for Client Co', client.split('</header>', 1)[0])
+            self.assertNotIn(' for Client Co', client.split('</header>', 1)[0])  # one byline for every run
             creator = report.render(work, {'audience': {'mode': 'creator', 'name': 'The Creator'}}, 'Creator teardown')
             self.assertNotIn('id="tab-yours"', creator)
             self.assertNotIn('id="yours"', creator)
             self.assertIn('Your best posts', creator)
             self.assertIn('Keep doing this', creator)
-            self.assertIn(' for The Creator', creator.split('</header>', 1)[0])
+            self.assertNotIn(' for The Creator', creator.split('</header>', 1)[0])
             self.assertEqual(report.audience_of({'audience': {'mode': 'odd'}})['mode'], 'me')
+
+    def test_two_channels_share_one_header(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as e:
+            self.page(d)
+            second = Path(e) / 'work'
+            shutil.copytree(d, second)
+            data = read(second / 'posts.json')
+            data['platform'], data['handle'] = 'youtube', 'SecondHandle'
+            write(second / 'posts.json', data)
+            page = report.render(Path(d), None, 'Creator teardown', also=[(second, None)])
+            header = page.split('</header>', 1)[0]
+            self.assertEqual(header.count('class="channel-switch"'), 2)
+            self.assertIn('data-channel-only="youtube" hidden', header)
+            self.assertIn('id="start-youtube" data-tab="start" data-channel="youtube"', page)
+            self.assertIn('id="wins-instagram"', page)
+            self.assertIn('Posts analysed', header)
+            self.assertNotIn('class="channel-icon"', header)
+            single = report.render(Path(d), None, 'Creator teardown')
+            self.assertIn('class="channel-icon"', single.split('</header>', 1)[0])
+            self.assertIn('id="start" data-tab="start"', single)
 
     def test_clock_and_day_text(self):
         self.assertEqual(report.clock(147.002676), '2:27')
@@ -796,7 +847,7 @@ class ReportV3(unittest.TestCase):
                                                   'ending': {'line': 'Last line', 'cta': 'Follow', 'why': 'Clear ask'}}})
             page = report.render(work, {'best_posts': [{'post_id': 'p0'}]}, 'Creator teardown')
             self.assertIn('<image href="data:image/jpeg;base64,', page)
-            best = page.split('id="best" role="tabpanel"', 1)[1].split('id="yours" role="tabpanel"', 1)[0]
+            best = page.split('id="best" data-tab="best"', 1)[1].split('id="yours" data-tab="yours"', 1)[0]
             for heading in ('Hook', 'Argument', 'Ending'):
                 self.assertIn(f'<h4>{heading}</h4>', best)
             self.assertIn('class="media-strip"', best)
@@ -821,19 +872,19 @@ class ReportV3(unittest.TestCase):
                                       'chosen_hook_why': 'Clearer'}]}
             page = self.page(d, playbook)
             self.assertIn('class="quote-chip">“Hook 0.”', page)
-            yours = page.split('id="yours" role="tabpanel"', 1)[1].split('id="sure" role="tabpanel"', 1)[0]
+            yours = page.split('id="yours" data-tab="yours"', 1)[1].split('id="sure" data-tab="sure"', 1)[0]
             self.assertIn('Option one', yours)
             self.assertIn('class="hook-option chosen">Option two', yours)
             self.assertIn('>Copy</button>', yours)
             empty = self.page(d, {})
-            self.assertNotIn('waiting', empty.split('id="yours" role="tabpanel"', 1)[1].split('id="sure" role="tabpanel"', 1)[0].lower())
+            self.assertNotIn('waiting', empty.split('id="yours" data-tab="yours"', 1)[1].split('id="sure" data-tab="sure"', 1)[0].lower())
 
     def test_review_and_inline_script_only(self):
         with tempfile.TemporaryDirectory() as d:
             page = self.page(d, {'review': [{'role': 'Hook check', 'verdict': 'pass', 'summary': 'Clear',
                                               'items': [{'claim': 'It opens well', 'verdict': 'pass', 'note': 'Yes'}]},
                                              {'role': 'Truth check', 'verdict': 'flagged', 'summary': 'Check source'}]})
-            review = page.split('id="sure" role="tabpanel"', 1)[1].split('id="data" role="tabpanel"', 1)[0]
+            review = page.split('id="sure" data-tab="sure"', 1)[1].split('id="data" data-tab="data"', 1)[0]
             self.assertIn('Hook check', review)
             self.assertIn('Truth check', review)
             self.assertIn('flagged', review)

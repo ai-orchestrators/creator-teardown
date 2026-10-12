@@ -2,9 +2,9 @@
 # build a public profile link, or run an offline test. No third-party text, post or strategy is reproduced.
 # Tier 1 (owner identity, brands, clients, paths) can NEVER be acked here.
 scripts/jev_client.py  # The two public Jev API endpoints (TypeSafe direct, OpenRouter fallback). Endpoint URLs only. Recorded 2026-10-12.
-scripts/scrape.py  # Apify's public API endpoint, plus the public profile URL patterns for Instagram, LinkedIn and YouTube used to build requests. Recorded 2026-10-12.
-scripts/normalise.py  # The YouTube Shorts URL pattern, used when an item carries no URL. Recorded 2026-10-12.
-scripts/visuals.py  # YouTube's public thumbnail URL pattern. Recorded 2026-10-12.
+scripts/scrape.py  # Apify's public API endpoint, the YouTube Data API endpoint, and the public profile URL patterns for Instagram, LinkedIn and YouTube used to build requests. Recorded 2026-10-12.
+scripts/normalise.py  # The YouTube Shorts and watch URL patterns, used to build each video's link. Recorded 2026-10-12.
+scripts/visuals.py  # YouTube's public thumbnail and watch URL patterns. Recorded 2026-10-12.
 scripts/report.py  # The Google Fonts stylesheet link, public profile URL patterns for the byline, and a text link to TypeSafe on the "Labelled by Jev" credit. Recorded 2026-10-12.
 scripts/tests/test_pipeline.py  # Synthetic test URLs only (example.com and made-up short links). Every post, caption and id is invented. Recorded 2026-10-12.
 scripts/tests/test_config_and_tools.py  # Synthetic example.com URLs only. Recorded 2026-10-12.

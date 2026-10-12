@@ -33,7 +33,7 @@ import report  # noqa: E402
 import scrape  # noqa: E402
 from test_pipeline import classify_work, full_work  # noqa: E402
 
-KEYS = ("APIFY_TOKEN", "TYPESAFE_API_KEY", "OPENROUTER_API_KEY")
+KEYS = ("APIFY_TOKEN", "TYPESAFE_API_KEY", "OPENROUTER_API_KEY", "YOUTUBE_API_KEY")
 PIXEL = bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010806000000"
                       "1f15c4890000000d49444154789c63000100000500010d0a2db40000000049454e44ae426082")
 
@@ -159,6 +159,22 @@ class Brand(ConfigCase):
         self.assertIn("They organise every post by colour.", page)
 
 
+    def test_two_channels_cost_in_configured_currency(self):
+        self.write("settings.json", {"currency": {"code": "AUD", "usd_rate": 1.5}})
+        first = full_work(tempfile.mkdtemp(prefix="ct-work-", dir=self.config))
+        patterns.run(first, min_n=3)
+        second = Path(tempfile.mkdtemp(prefix="ct-work-", dir=self.config)) / "work"
+        shutil.copytree(first, second)
+        data = json.loads((second / "posts.json").read_text())
+        data["platform"] = "youtube"
+        (second / "posts.json").write_text(json.dumps(data))
+        page = report.render(first, None, "Example Teardown", also=[(second, None)])
+        cost = page.split('class="stat cost"', 1)[1].split("</div>", 1)[0]
+        self.assertIn("A$0.03", cost)
+        self.assertIn("(US$0.02)", cost)
+        self.assertIn("SYM=costEl?.dataset.symbol", page)
+        self.assertNotIn("1.55", page.split("<script>", 1)[1])
+
     def test_dates_follow_the_timezone_setting(self):
         self.page()
         self.assertEqual(report.day_text("2026-09-21T20:00:00Z"), "21 Sep 2026")
@@ -205,7 +221,8 @@ class SetupCheck(ConfigCase):
         os.environ["APIFY_TOKEN"] = "apify-secret-value-123"
         report_data = check_setup.run()
         self.assertEqual(report_data["keys"], {"APIFY_TOKEN": True, "TYPESAFE_API_KEY": False,
-                                               "OPENROUTER_API_KEY": False})
+                                               "OPENROUTER_API_KEY": False, "YOUTUBE_API_KEY": False})
+        self.assertIn("youtube-transcript-api", report_data["optional"])
         self.assertNotIn("apify-secret-value-123", json.dumps(report_data))
         self.assertTrue(any("TYPESAFE_API_KEY" in p for p in report_data["problems"]))
         self.assertTrue(any("settings.json" in p for p in report_data["problems"]))
@@ -241,6 +258,39 @@ class Scrape(ConfigCase):
                                     "duration": 30, "view_count": 500}]))
         out = scrape.run(work, platform="youtube", handle="example_creator", from_raw=raw)
         self.assertEqual(out["posts"][0]["metrics"]["views"], 500)
+
+
+class YouTubeSetup(ConfigCase):
+    def test_handle_and_key_stay_out_of_the_url(self):
+        for raw in ("@SomeChannel", "SomeChannel", "https://www.youtube.com/@SomeChannel/shorts"):
+            self.assertEqual(scrape.youtube_handle(raw), "SomeChannel")
+        request = scrape.youtube_api_request("channels", "yt-test-key", part="contentDetails", forHandle="@SomeChannel")
+        self.assertNotIn("yt-test-key", request.full_url)
+        self.assertEqual(request.get_header("X-goog-api-key"), "yt-test-key")
+
+    def test_no_key_falls_back_to_the_shorts_listing(self):
+        work = Path(tempfile.mkdtemp(prefix="ct-yt-", dir=self.config))
+        listing = [{"id": "yt1", "url": "https://example.com/shorts/yt1", "title": "A short", "duration": 30,
+                    "view_count": 500}]
+        with mock.patch.object(scrape, "run_ytdlp", return_value=listing) as ytdlp, \
+                mock.patch.object(scrape.urllib.request, "urlopen") as urlopen, \
+                mock.patch("sys.stderr", new_callable=io.StringIO):
+            out = scrape.run(work, platform="youtube", handle="@SomeChannel", limit=10)
+        urlopen.assert_not_called()
+        ytdlp.assert_called_once_with("SomeChannel", 10)
+        self.assertEqual(out["posts"][0]["format"], "short")
+
+    def test_youtube_only_with_captions_makes_whisper_optional(self):
+        self.write("settings.json", {"platforms": ["youtube"]})
+        with mock.patch.object(check_setup.importlib.util, "find_spec", return_value=object()):
+            report_data = check_setup.run()
+        self.assertFalse(any("whisper" in p for p in report_data["problems"]))
+        self.assertTrue(any("YOUTUBE_API_KEY" in n for n in report_data["notes"]))
+        with mock.patch.object(check_setup.importlib.util, "find_spec", return_value=None), \
+                mock.patch.object(check_setup, "tool", return_value={"found": False, "path": None}):
+            report_data = check_setup.run()
+        self.assertTrue(any("whisper" in p for p in report_data["problems"]))
+        self.assertTrue(any("youtube-transcript-api" in n for n in report_data["notes"]))
 
 
 class Lint(ConfigCase):
